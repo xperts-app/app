@@ -1,0 +1,262 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EduPlayer</title>
+  <style>
+    * {
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    .player-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 16 / 9;
+      background: black;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    #player {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .center-controls {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      gap: 40px;
+      z-index: 10;
+    }
+    .control-btn {
+      background: transparent;
+      border: none;
+      padding: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .control-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: #ffffff;
+      transition: fill 0.2s ease;
+    }
+    .control-btn:hover svg {
+      fill: #00aaff;
+    }
+    .bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px 12px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #333;
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #00aaff;
+      border-radius: 4px;
+    }
+    .bottom-bar span {
+      color: #fff;
+      font-size: 14px;
+      width: 50px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="player-wrapper" id="wrapper">
+  <div id="player"></div>
+
+  <div class="center-controls" id="centerControls">
+    <button class="control-btn" id="rewind" title="Rewind 10s">
+      <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6L11 18zm1-12v12l8.5-6L12 6z"/></svg>
+    </button>
+    <button class="control-btn" id="playPause" title="Play/Pause">
+      <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="control-btn" id="forward" title="Forward 10s">
+      <svg viewBox="0 0 24 24"><path d="M13 6v12l8.5-6L13 6zm-1 12V6l-8.5 6L12 18z"/></svg>
+    </button>
+  </div>
+
+  <div class="bottom-bar" id="bottomBar">
+    <span id="currentTime">0:00</span>
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <span id="remainingTime">-0:00</span>
+    <button class="control-btn" id="fullscreenBtn" title="Fullscreen">
+      <svg viewBox="0 0 24 24"><path d="M7 14v3h3v2H5v-5h2zm0-4H5V5h5v2H7v3zm10 4h2v5h-5v-2h3v-3zm0-4V7h-3V5h5v5h-2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  let player, isPlaying = false;
+  const wrapper = document.getElementById('wrapper');
+  const playIcon = document.getElementById('playIcon');
+  const centerControls = document.getElementById('centerControls');
+  const bottomBar = document.getElementById('bottomBar');
+  const progressBar = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+  let controlsVisible = true;
+  let autoHideTimer;
+
+  const tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.body.appendChild(tag);
+
+  function getVideoId() {
+    const p = new URLSearchParams(window.location.search);
+    const u = p.get("video");
+    if (!u) return "_qgT0bv-juc";
+    try {
+      const yt = new URL(u);
+      if (yt.hostname.includes("youtube.com")) return yt.searchParams.get("v");
+      if (yt.hostname === "youtu.be") return yt.pathname.slice(1);
+    } catch {
+      return u;
+    }
+    return "_qgT0bv-juc";
+  }
+
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player('player', {
+      videoId: getVideoId(),
+      playerVars: { autoplay: 1, controls: 0, modestbranding: 1, mute: 1 },
+      events: {
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange
+      }
+    });
+  }
+
+  function onPlayerReady() {
+    player.unMute();
+    const videoId = getVideoId();
+    const savedTime = localStorage.getItem("videoTime_" + videoId);
+    if (savedTime) player.seekTo(parseFloat(savedTime), true);
+    setInterval(() => {
+      if (player && player.getCurrentTime) {
+        localStorage.setItem("videoTime_" + videoId, player.getCurrentTime());
+      }
+    }, 5000);
+    document.getElementById("playPause").addEventListener("click", () => {
+      isPlaying ? player.pauseVideo() : player.playVideo();
+    });
+    document.getElementById("rewind").addEventListener("click", () => {
+      player.seekTo(player.getCurrentTime() - 10, true);
+    });
+    document.getElementById("forward").addEventListener("click", () => {
+      player.seekTo(player.getCurrentTime() + 10, true);
+    });
+    document.getElementById("fullscreenBtn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!document.fullscreenElement) {
+        wrapper.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+    wrapper.addEventListener("dblclick", () => {
+      if (!document.fullscreenElement) {
+        wrapper.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+    wrapper.addEventListener("click", () => {
+      toggleControls();
+    });
+    showControls();
+    setInterval(() => {
+      if (!player || !player.getDuration) return;
+      const current = player.getCurrentTime();
+      const total = player.getDuration();
+      const percent = (current / total) * 100;
+      progressFill.style.width = percent + "%";
+      document.getElementById("currentTime").textContent = formatTime(current);
+      document.getElementById("remainingTime").textContent = "-" + formatTime(total - current);
+    }, 500);
+    progressBar.addEventListener("click", (e) => {
+      const rect = progressBar.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      const time = pct * player.getDuration();
+      player.seekTo(time, true);
+    });
+  }
+
+  function onPlayerStateChange(e) {
+    if (e.data === YT.PlayerState.PLAYING) {
+      isPlaying = true;
+      playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+    } else {
+      isPlaying = false;
+      playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    }
+    if (e.data === YT.PlayerState.ENDED) {
+      localStorage.removeItem("videoTime_" + getVideoId());
+    }
+  }
+
+  function showControls() {
+    centerControls.style.display = "flex";
+    bottomBar.style.display = "flex";
+    controlsVisible = true;
+    clearTimeout(autoHideTimer);
+    autoHideTimer = setTimeout(hideControls, 3000);
+  }
+
+  function hideControls() {
+    centerControls.style.display = "none";
+    bottomBar.style.display = "none";
+    controlsVisible = false;
+  }
+
+  function toggleControls() {
+    controlsVisible ? hideControls() : showControls();
+  }
+
+  function formatTime(sec) {
+    const minutes = Math.floor(sec / 60);
+    const seconds = Math.floor(sec % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }
+</script>
+</body>
+</html>
