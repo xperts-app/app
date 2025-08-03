@@ -78,11 +78,16 @@
             margin-top: 10px;
             min-height: 1.2em; /* Prevents layout shift */
         }
+        /* Style for the auto-login message */
+        #auto-login-message {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <!-- This container holds the login form -->
+    <div class="container" id="login-container">
         <h1>Welcome to ALLEN</h1>
         <p>Please enter your mobile number to continue.</p>
 
@@ -95,16 +100,21 @@
             <div id="password-container">
                 <div class="input-group">
                     <label for="password">Password</label>
-                    <!-- 'required' attribute removed to prevent form blocking -->
                     <input type="password" id="password" name="password" placeholder="Enter your password">
                 </div>
             </div>
 
-            <!-- Changed to type="button" -->
             <button type="button" class="btn" id="submit-btn">Continue</button>
             <p id="error-message" class="error-msg"></p>
         </div>
     </div>
+
+    <!-- This container is shown during auto-login -->
+    <div class="container" id="auto-login-message">
+        <h1>Welcome Back!</h1>
+        <p>You are already logged in. Redirecting you now...</p>
+    </div>
+
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -121,10 +131,42 @@
             appId: "1:934675149024:web:23486a5f38f65f103ce085",
             measurementId: "G-6TS06NTDZQ"
         };
-
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+
+        // --- NEW: AUTO-LOGIN CHECK ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const userId = localStorage.getItem('loggedInUserId');
+            const userRole = localStorage.getItem('loggedInUserRole');
+
+            if (userId && userRole) {
+                // User is already logged in, hide the form and show the message
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('auto-login-message').style.display = 'block';
+                
+                // Redirect after a short delay
+                setTimeout(() => {
+                    // Note: 'isAllowed' is a string 'true' or 'false' in localStorage
+                    const isAllowed = localStorage.getItem('loggedInUserIsAllowed') === 'true';
+
+                    switch (userRole) {
+                        case 'Student':
+                            window.location.href = isAllowed ? 'https://tv.apple.com' : 'https://nokia.com';
+                            break;
+                        case 'Teacher':
+                            window.location.href = 'https://apple.com';
+                            break;
+                        case 'Admin':
+                            window.location.href = '3.html';
+                            break;
+                        default:
+                            // Fallback if role is unknown
+                            window.location.href = 'https://nokia.com';
+                    }
+                }, 1500); // 1.5-second delay for the message to be visible
+            }
+        });
+
 
         // DOM Elements
         const mobileInput = document.getElementById('mobile');
@@ -136,9 +178,8 @@
         let isLoginState = false;
         let userData = null;
 
-        // *** CHANGED: Listening to button click instead of form submit ***
         submitBtn.addEventListener('click', async () => {
-            submitBtn.disabled = true; // Disable button to prevent multiple clicks
+            submitBtn.disabled = true;
             errorMessage.textContent = '';
             const mobileNumber = mobileInput.value.trim();
 
@@ -149,34 +190,28 @@
             }
 
             if (!isLoginState) {
-                // State 1: Check if user's mobile number exists
                 try {
                     const usersRef = db.collection('users');
-                    // IMPORTANT: This query requires a Firestore index on the 'mobileNumber' field.
-                    // Firebase will log an error in your browser's console with a link to create it if it's missing.
                     const snapshot = await usersRef.where('mobileNumber', '==', mobileNumber).get();
                     
                     if (snapshot.empty) {
-                        // User not registered, redirect to signup page
                         localStorage.setItem('mobileForSignup', mobileNumber);
                         window.location.href = '2.html';
                     } else {
-                        // User exists, show password field and prepare for login
                         snapshot.forEach(doc => {
                             userData = { id: doc.id, ...doc.data() };
                         });
                         isLoginState = true;
-                        mobileInput.disabled = true; // Lock the mobile number input
+                        mobileInput.disabled = true;
                         passwordContainer.style.display = 'block';
                         passwordInput.focus();
                         submitBtn.textContent = 'Login';
                     }
                 } catch (error) {
                     console.error("Error checking user:", error);
-                    errorMessage.textContent = 'An error occurred. Please try again. Check console for details.';
+                    errorMessage.textContent = 'An error occurred. Please try again.';
                 }
             } else {
-                // State 2: Handle login attempt with password
                 const password = passwordInput.value;
                 if (!password) {
                     errorMessage.textContent = 'Password is required.';
@@ -185,11 +220,13 @@
                 }
 
                 if (userData && userData.password === password) {
-                    // Login successful
+                    // --- NEW: SAVE USER DATA TO LOCALSTORAGE ---
                     localStorage.setItem('loggedInUserId', userData.id);
                     localStorage.setItem('loggedInUserRole', userData.role);
+                    // Also store isAllowed status for student redirection logic
+                    localStorage.setItem('loggedInUserIsAllowed', userData.isAllowed);
 
-                    // Redirection logic based on role and status
+                    // Redirection logic (remains the same)
                     switch (userData.role) {
                         case 'Student':
                             window.location.href = userData.isAllowed ? 'https://tv.apple.com' : 'https://nokia.com';
@@ -198,11 +235,9 @@
                             window.location.href = 'https://apple.com';
                             break;
                         case 'Admin':
-                             // Redirecting to the admin CMS panel.
                             window.location.href = '3.html';
                             break;
                         default:
-                            // Fallback for unknown roles or users pending approval
                             window.location.href = 'https://nokia.com';
                     }
 
@@ -210,7 +245,7 @@
                     errorMessage.textContent = 'Incorrect password. Please try again.';
                 }
             }
-            submitBtn.disabled = false; // Re-enable the button
+            submitBtn.disabled = false;
         });
 
     </script>
