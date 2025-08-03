@@ -139,24 +139,24 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Admin Auth Guard
+        // --- AUTHENTICATION REMOVED ---
+        // The page now loads user data for any visitor.
         document.addEventListener('DOMContentLoaded', () => {
-            const loggedInRole = localStorage.getItem('loggedInUserRole');
-            if (loggedInRole !== 'Admin') {
-                alert('Access Denied. You must be an admin to view this page.');
-                window.location.href = '1.html';
-            } else {
-                loadUsers();
-            }
+            loadUsers();
         });
 
         async function loadUsers() {
             const tableBody = document.querySelector('#users-table tbody');
-            tableBody.innerHTML = '<tr><td colspan="8">Loading users...</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Loading users...</td></tr>';
             
             try {
-                const snapshot = await db.collection('users').get();
+                const snapshot = await db.collection('users').orderBy('fullName').get();
                 tableBody.innerHTML = ''; // Clear loading message
+
+                if (snapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No users found.</td></tr>';
+                    return;
+                }
 
                 snapshot.forEach(doc => {
                     const user = doc.data();
@@ -195,7 +195,7 @@
 
             } catch (error) {
                 console.error("Error fetching users: ", error);
-                tableBody.innerHTML = '<tr><td colspan="8">Failed to load users.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Failed to load users. Please check the console for errors.</td></tr>';
             }
         }
         
@@ -208,7 +208,7 @@
                     try {
                         await db.collection('users').doc(userId).update({ role: newRole });
                         alert('Role updated successfully!');
-                        loadUsers(); // Reload to reflect changes (e.g., hiding allow switch)
+                        loadUsers(); // Reload to reflect changes (e.g., hiding/showing allow switch)
                     } catch (error) {
                         console.error("Error updating role:", error);
                         alert('Failed to update role.');
@@ -223,7 +223,7 @@
                     const isAllowed = e.target.checked;
                     try {
                         await db.collection('users').doc(userId).update({ isAllowed: isAllowed });
-                        alert(`User ${isAllowed ? 'allowed' : 'disallowed'} successfully!`);
+                        alert(`User access ${isAllowed ? 'ENABLED' : 'DISABLED'} successfully!`);
                     } catch (error) {
                         console.error("Error updating status:", error);
                         alert('Failed to update status.');
