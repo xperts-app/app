@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - ALLEN</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1d1d1f;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 450px;
+            margin: 0 auto;
+            background-color: #f0f2f5;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 40px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 8px;
+            background-color: #007aff;
+            border-radius: 10px;
+            transition: width 0.4s ease-in-out;
+        }
+        .step {
+            display: none;
+            text-align: center;
+        }
+        .step.active {
+            display: block;
+        }
+        .illustration {
+            width: 120px;
+            height: auto;
+            margin-bottom: 25px;
+        }
+        h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        p {
+            font-size: 17px;
+            color: #6e6e73;
+            margin-bottom: 30px;
+        }
+        .input-field {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            font-size: 17px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .choice-btn {
+            padding: 14px 20px;
+            font-size: 17px;
+            border: 1px solid #d2d2d7;
+            border-radius: 12px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .choice-btn.selected {
+            background-color: #007aff;
+            color: white;
+            border-color: #007aff;
+        }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            background-color: #007aff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn:disabled {
+            background-color: #d2d2d7;
+            cursor: not-allowed;
+        }
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #e0e0e0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <button class="back-btn" id="back-btn">←</button>
+
+    <div class="container">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <form id="signup-form">
+            <!-- Step 1: Name -->
+            <div class="step active" data-step="1">
+                <img src="https://i.imgur.com/3Z0a0Bv.png" alt="Illustration" class="illustration">
+                <h2>We are excited to have you join!</h2>
+                <p>What should we call you?</p>
+                <input type="text" id="fullName" class="input-field" placeholder="Student's full name" required>
+                <button type="button" class="btn next-btn">Next</button>
+            </div>
+
+            <!-- Step 2: Goal -->
+            <div class="step" data-step="2">
+                <img src="https://i.imgur.com/k2nL41z.png" alt="Illustration" class="illustration">
+                <h2>Hi, <span id="displayName"></span>!</h2>
+                <p>Please tell us your goal</p>
+                <div class="btn-group" id="goal-group">
+                    <button type="button" class="choice-btn" data-value="NEET">NEET</button>
+                    <button type="button" class="choice-btn" data-value="JEE">JEE</button>
+                    <button type="button" class="choice-btn" data-value="Class 6-10">Class 6-10</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Class -->
+            <div class="step" data-step="3">
+                <img src="https://i.imgur.com/k2nL41z.png" alt="Illustration" class="illustration">
+                <h2>You selected, <span id="displayGoal"></span>!</h2>
+                <p>Now, please select your class.</p>
+                <div class="btn-group" id="class-group">
+                    <!-- Class buttons will be added here dynamically -->
+                </div>
+            </div>
+            
+            <!-- Step 4: Board -->
+            <div class="step" data-step="4">
+                <img src="https://i.imgur.com/k2nL41z.png" alt="Illustration" class="illustration">
+                <h2>Great! One last thing for basics.</h2>
+                <p>Which board are you studying under?</p>
+                 <div class="btn-group" id="board-group">
+                    <button type="button" class="choice-btn" data-value="CBSE">CBSE</button>
+                    <button type="button" class="choice-btn" data-value="RBSE">RBSE</button>
+                    <button type="button" class="choice-btn" data-value="Others">Others</button>
+                </div>
+            </div>
+
+            <!-- Step 5: Final Details -->
+            <div class="step" data-step="5">
+                <img src="https://i.imgur.com/3Z0a0Bv.png" alt="Illustration" class="illustration">
+                <h2>Almost there!</h2>
+                <p>Please provide some additional information.</p>
+                <input type="text" id="parentName" class="input-field" placeholder="Parent's Name" required>
+                <input type="email" id="email" class="input-field" placeholder="Email ID" required>
+                <label for="dob" style="text-align: left; display: block; margin: -10px 0 8px 5px; color: #6e6e73;">Date of Birth</label>
+                <input type="date" id="dob" class="input-field" required>
+                <input type="password" id="password" class="input-field" placeholder="Create a Password" required>
+                <button type="submit" class="btn">Complete Signup</button>
+            </div>
+
+            <!-- Final Step -->
+            <div class="step" id="final-step" data-step="6">
+                <img src="https://i.imgur.com/jT3uE7V.png" class="illustration">
+                <h2>Thank you for sharing your details!</h2>
+                <p>Your account has been created. An admin will review and approve your access shortly.</p>
+                <button type="button" class="btn" id="finish-btn">Go to Waiting Page</button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
+            authDomain: "xperts-data.firebaseapp.com",
+            projectId: "xperts-data",
+            storageBucket: "xperts-data.appspot.com",
+            messagingSenderId: "934675149024",
+            appId: "1:934675149024:web:23486a5f38f65f103ce085",
+            measurementId: "G-6TS06NTDZQ"
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        const mobileNumber = localStorage.getItem('signupMobileNumber');
+        if (!mobileNumber) {
+            alert("Mobile number not found. Redirecting to login.");
+            window.location.href = '1.html';
+        }
+
+        const steps = document.querySelectorAll('.step');
+        const progressBar = document.getElementById('progress-bar');
+        const backBtn = document.getElementById('back-btn');
+        let currentStep = 1;
+        const totalSteps = 6;
+        
+        const formData = {
+            mobileNumber: mobileNumber,
+            fullName: '',
+            goal: '',
+            class: '',
+            board: '',
+            parentName: '',
+            email: '',
+            dob: '',
+            password: '',
+            isAllowed: false,
+            role: 'Student'
+        };
+
+        function updateProgress() {
+            progressBar.style.width = `${((currentStep - 1) / (totalSteps - 1)) * 100}%`;
+            steps.forEach(step => {
+                step.classList.remove('active');
+                if (parseInt(step.dataset.step) === currentStep) {
+                    step.classList.add('active');
+                }
+            });
+            backBtn.style.display = currentStep > 1 && currentStep < totalSteps ? 'block' : 'none';
+        }
+
+        function goToStep(stepNumber) {
+            currentStep = stepNumber;
+            updateProgress();
+        }
+
+        backBtn.addEventListener('click', () => {
+            if (currentStep > 1) {
+                goToStep(currentStep - 1);
+            }
+        });
+
+        // Step 1: Name
+        document.querySelector('.next-btn').addEventListener('click', () => {
+            const fullName = document.getElementById('fullName').value;
+            if (fullName.trim()) {
+                formData.fullName = fullName.trim();
+                document.getElementById('displayName').textContent = formData.fullName.split(' ')[0];
+                goToStep(2);
+            } else {
+                alert('Please enter your full name.');
+            }
+        });
+
+        // Step 2: Goal
+        document.getElementById('goal-group').addEventListener('click', e => {
+            if (e.target.classList.contains('choice-btn')) {
+                formData.goal = e.target.dataset.value;
+                document.getElementById('displayGoal').textContent = formData.goal;
+                
+                // Dynamically add class buttons
+                const classGroup = document.getElementById('class-group');
+                classGroup.innerHTML = '';
+                let classes = [];
+                if(formData.goal === 'NEET' || formData.goal === 'JEE'){
+                    classes = ['11th', '12th'];
+                } else {
+                    classes = ['6th', '7th', '8th', '9th', '10th'];
+                }
+                classes.forEach(c => {
+                    classGroup.innerHTML += `<button type="button" class="choice-btn" data-value="${c}">${c}</button>`;
+                });
+                goToStep(3);
+            }
+        });
+
+        // Step 3: Class
+        document.getElementById('class-group').addEventListener('click', e => {
+            if (e.target.classList.contains('choice-btn')) {
+                formData.class = e.target.dataset.value;
+                goToStep(4);
+            }
+        });
+
+        // Step 4: Board
+        document.getElementById('board-group').addEventListener('click', e => {
+            if (e.target.classList.contains('choice-btn')) {
+                formData.board = e.target.dataset.value;
+                goToStep(5);
+            }
+        });
+
+
+        // Step 5: Final Form Submission
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            formData.parentName = document.getElementById('parentName').value;
+            formData.email = document.getElementById('email').value;
+            formData.dob = document.getElementById('dob').value;
+            formData.password = document.getElementById('password').value;
+
+            // Basic validation
+            if(!formData.parentName || !formData.email || !formData.dob || !formData.password) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            try {
+                // IMPORTANT: In a real app, NEVER store passwords in plain text.
+                // Use Firebase Authentication or a secure hashing method on a server.
+                await db.collection('users').doc(formData.mobileNumber).set(formData);
+                localStorage.removeItem('signupMobileNumber');
+                goToStep(6);
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert('An error occurred during signup. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Complete Signup';
+            }
+        });
+        
+        document.getElementById('finish-btn').addEventListener('click', () => {
+            window.location.href = 'https://www.nokia.com';
+        });
+
+        updateProgress(); // Initial call
+    </script>
+</body>
+</html>
