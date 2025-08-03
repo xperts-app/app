@@ -66,12 +66,17 @@
         .btn:hover {
             background-color: #0056b3;
         }
+        .btn:disabled {
+            background-color: #a0cffd;
+            cursor: not-allowed;
+        }
         #password-container {
             display: none;
         }
         .error-msg {
             color: #d9534f;
             margin-top: 10px;
+            min-height: 1.2em; /* Prevents layout shift */
         }
     </style>
 </head>
@@ -81,22 +86,24 @@
         <h1>Welcome to ALLEN</h1>
         <p>Please enter your mobile number to continue.</p>
 
-        <form id="login-form">
+        <div id="login-form">
             <div class="input-group">
                 <label for="mobile">Mobile Number</label>
-                <input type="tel" id="mobile" name="mobile" placeholder="Enter your 10-digit mobile number" required>
+                <input type="tel" id="mobile" name="mobile" placeholder="Enter your 10-digit mobile number" maxlength="10">
             </div>
             
             <div id="password-container">
                 <div class="input-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    <!-- 'required' attribute removed to prevent form blocking -->
+                    <input type="password" id="password" name="password" placeholder="Enter your password">
                 </div>
             </div>
 
-            <button type="submit" class="btn" id="submit-btn">Continue</button>
+            <!-- Changed to type="button" -->
+            <button type="button" class="btn" id="submit-btn">Continue</button>
             <p id="error-message" class="error-msg"></p>
-        </form>
+        </div>
     </div>
 
     <!-- Firebase SDK -->
@@ -120,7 +127,6 @@
         const db = firebase.firestore();
 
         // DOM Elements
-        const form = document.getElementById('login-form');
         const mobileInput = document.getElementById('mobile');
         const passwordContainer = document.getElementById('password-container');
         const passwordInput = document.getElementById('password');
@@ -130,74 +136,83 @@
         let isLoginState = false;
         let userData = null;
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // *** CHANGED: Listening to button click instead of form submit ***
+        submitBtn.addEventListener('click', async () => {
+            submitBtn.disabled = true; // Disable button to prevent multiple clicks
             errorMessage.textContent = '';
             const mobileNumber = mobileInput.value.trim();
 
             if (!/^\d{10}$/.test(mobileNumber)) {
                 errorMessage.textContent = 'Please enter a valid 10-digit mobile number.';
+                submitBtn.disabled = false;
                 return;
             }
 
             if (!isLoginState) {
-                // Check if user exists
+                // State 1: Check if user's mobile number exists
                 try {
                     const usersRef = db.collection('users');
+                    // IMPORTANT: This query requires a Firestore index on the 'mobileNumber' field.
+                    // Firebase will log an error in your browser's console with a link to create it if it's missing.
                     const snapshot = await usersRef.where('mobileNumber', '==', mobileNumber).get();
                     
                     if (snapshot.empty) {
-                        // User not registered, redirect to signup
+                        // User not registered, redirect to signup page
                         localStorage.setItem('mobileForSignup', mobileNumber);
                         window.location.href = '2.html';
                     } else {
-                        // User exists, ask for password
+                        // User exists, show password field and prepare for login
                         snapshot.forEach(doc => {
                             userData = { id: doc.id, ...doc.data() };
                         });
                         isLoginState = true;
-                        mobileInput.disabled = true;
+                        mobileInput.disabled = true; // Lock the mobile number input
                         passwordContainer.style.display = 'block';
+                        passwordInput.focus();
                         submitBtn.textContent = 'Login';
                     }
                 } catch (error) {
                     console.error("Error checking user:", error);
-                    errorMessage.textContent = 'An error occurred. Please try again.';
+                    errorMessage.textContent = 'An error occurred. Please try again. Check console for details.';
                 }
             } else {
-                // Handle login
+                // State 2: Handle login attempt with password
                 const password = passwordInput.value;
+                if (!password) {
+                    errorMessage.textContent = 'Password is required.';
+                    submitBtn.disabled = false;
+                    return;
+                }
+
                 if (userData && userData.password === password) {
                     // Login successful
                     localStorage.setItem('loggedInUserId', userData.id);
                     localStorage.setItem('loggedInUserRole', userData.role);
 
-                    // Redirection logic
+                    // Redirection logic based on role and status
                     switch (userData.role) {
                         case 'Student':
-                            if (userData.isAllowed) {
-                                window.location.href = 'https://tv.apple.com';
-                            } else {
-                                window.location.href = 'https://nokia.com';
-                            }
+                            window.location.href = userData.isAllowed ? 'https://tv.apple.com' : 'https://nokia.com';
                             break;
                         case 'Teacher':
                             window.location.href = 'https://apple.com';
                             break;
                         case 'Admin':
-                            window.location.href = 'https://abc.xyz'; // As per instruction
-                            // The admin can navigate to 3.html manually
+                             // Redirecting to the admin CMS panel.
+                            window.location.href = '3.html';
                             break;
                         default:
-                             window.location.href = 'https://nokia.com';
+                            // Fallback for unknown roles or users pending approval
+                            window.location.href = 'https://nokia.com';
                     }
 
                 } else {
                     errorMessage.textContent = 'Incorrect password. Please try again.';
                 }
             }
+            submitBtn.disabled = false; // Re-enable the button
         });
-    </script>
 
+    </script>
 </body>
 </html>
