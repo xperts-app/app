@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Mark Attendance</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+        body { font-family: 'Poppins', sans-serif; background-color: #f0f4f9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        h1 { text-align: center; color: #1d2c3c; margin-bottom: 30px; }
+        .selection-area { display: flex; gap: 20px; align-items: center; margin-bottom: 30px; }
+        label { font-weight: 500; }
+        select { padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; flex-grow: 1; }
+        #student-list-container { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        .student-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f0f0f0; }
+        .student-row:last-child { border-bottom: none; }
+        .student-row span { font-weight: 500; }
+        .attendance-options input { margin-left: 15px; margin-right: 5px; }
+        .btn { background-color: #28a745; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; transition: background-color 0.3s; display: block; width: 100%; margin-top: 30px; }
+        .btn:hover { background-color: #218838; } .btn:disabled { background-color: #a3d9b1; cursor: not-allowed; }
+        #message-area { text-align: center; margin-top: 20px; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mark Student Attendance</h1>
+        <div class="selection-area">
+            <label for="class-select">Select Class:</label>
+            <select id="class-select">
+                <option value="">-- Please choose a class --</option>
+                <option value="6">6th</option><option value="7">7th</option><option value="8">8th</option><option value="9">9th</option><option value="10">10th</option>
+                <option value="11 NEET">11th NEET</option><option value="11 JEE">11th JEE</option><option value="12 NEET">12th NEET</option><option value="12 JEE">12th JEE</option>
+            </select>
+        </div>
+        <div id="student-list-container"></div>
+        <button class="btn" id="save-attendance-btn" style="display: none;">Save Attendance</button>
+        <p id="message-area"></p>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", authDomain: "xperts-data.firebaseapp.com", projectId: "xperts-data", storageBucket: "xperts-data.firebasestorage.app", messagingSenderId: "934675149024", appId: "1:934675149024:web:23486a5f38f65f103ce085", measurementId: "G-6TS06NTDZQ" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const classSelect = document.getElementById('class-select');
+        const studentListContainer = document.getElementById('student-list-container');
+        const saveBtn = document.getElementById('save-attendance-btn');
+        const messageArea = document.getElementById('message-area');
+
+        classSelect.addEventListener('change', async (e) => {
+            const selectedClass = e.target.value;
+            studentListContainer.innerHTML = ''; saveBtn.style.display = 'none'; messageArea.textContent = '';
+            if (!selectedClass) return;
+            studentListContainer.innerHTML = '<p>Loading students...</p>';
+
+            try {
+                const usersRef = db.collection('users');
+                const queries = [];
+
+                // --- MODIFICATION START ---
+                // This logic creates queries for BOTH old and new data structures
+                if (selectedClass.includes(' ')) { // e.g., "11 NEET"
+                    const [classNum, goal] = selectedClass.split(' ');
+                    // Query 1: For new users with combined class (e.g., class: "11 NEET")
+                    queries.push(usersRef.where('class', '==', selectedClass).where('role', '==', 'Student').get());
+                    // Query 2: For old users with separate class/goal (e.g., class: "11th", goal: "NEET")
+                    queries.push(usersRef.where('class', '==', `${classNum}th`).where('goal', '==', goal).where('role', '==', 'Student').get());
+                } else { // e.g., "6", "7", etc.
+                    // Query 1: For new users (e.g., class: "6")
+                    queries.push(usersRef.where('class', '==', selectedClass).where('role', '==', 'Student').get());
+                    // Query 2: For old users (e.g., class: "6th")
+                    queries.push(usersRef.where('class', '==', `${selectedClass}th`).where('role', '==', 'Student').get());
+                }
+
+                const allSnapshots = await Promise.all(queries);
+                const students = new Map(); // Use a Map to prevent duplicates if a user somehow matches both
+
+                allSnapshots.forEach(snapshot => {
+                    snapshot.forEach(doc => {
+                        students.set(doc.id, { id: doc.id, ...doc.data() });
+                    });
+                });
+                // --- MODIFICATION END ---
+                
+                if (students.size === 0) {
+                    studentListContainer.innerHTML = '<p>No students found for this class.</p>'; return;
+                }
+
+                studentListContainer.innerHTML = '';
+                // Sort students by name before displaying
+                const sortedStudents = Array.from(students.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+                sortedStudents.forEach(student => {
+                    const row = document.createElement('div');
+                    row.className = 'student-row'; row.dataset.id = student.id; row.dataset.name = student.fullName;
+                    row.innerHTML = `<span>${student.fullName}</span><div class="attendance-options"><label><input type="radio" name="status-${student.id}" value="Present" required> Present</label><label><input type="radio" name="status-${student.id}" value="Absent"> Absent</label></div>`;
+                    studentListContainer.appendChild(row);
+                });
+                saveBtn.style.display = 'block';
+
+            } catch (error) { console.error("Error fetching students:", error); studentListContainer.innerHTML = '<p>Error loading students. You may need to create a Firestore index. Check the browser console for a link.</p>'; }
+        });
+
+        saveBtn.addEventListener('click', async () => { /* ... This logic remains the same ... */ 
+            saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; messageArea.textContent = '';
+            const selectedClass = classSelect.value; const date = new Date(); const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const docId = `${selectedClass.replace(/\s+/g, '-')}_${dateString}`;
+            const presentStudentIds = []; const absentStudentIds = [];
+            const studentRows = document.querySelectorAll('.student-row'); let allMarked = true;
+            studentRows.forEach(row => { const studentId = row.dataset.id; const studentName = row.dataset.name; const checkedRadio = row.querySelector(`input[name="status-${studentId}"]:checked`); if (!checkedRadio) { allMarked = false; return; } if (checkedRadio.value === 'Present') { presentStudentIds.push(studentId); } else { absentStudentIds.push(studentId); } });
+            if (!allMarked) { messageArea.textContent = 'Please mark attendance for all students.'; messageArea.style.color = 'red'; saveBtn.disabled = false; saveBtn.textContent = 'Save Attendance'; return; }
+            try { await db.collection('attendance').doc(docId).set({ class: selectedClass, date: dateString, presentStudentIds: presentStudentIds, absentStudentIds: absentStudentIds, }); messageArea.textContent = 'Attendance saved successfully!'; messageArea.style.color = 'green'; } catch (error) { console.error("Error saving attendance:", error); messageArea.textContent = 'Failed to save attendance. Please try again.'; messageArea.style.color = 'red'; } finally { saveBtn.disabled = false; saveBtn.textContent = 'Save Attendance'; }
+        });
+    </script>
+</body>
+</html>
