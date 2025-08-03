@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Data Structure Fix</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+        body { font-family: 'Poppins', sans-serif; background-color: #f0f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background-color: white; padding: 40px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); text-align: center; max-width: 600px; }
+        h1 { color: #1d2c3c; }
+        p { color: #555; line-height: 1.6; }
+        .btn { background-color: #dc3545; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; transition: background-color 0.3s; margin-top: 20px; }
+        .btn:hover { background-color: #c82333; } .btn:disabled { background-color: #f5c6cb; cursor: not-allowed; }
+        #log-area { margin-top: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 15px; height: 200px; overflow-y: auto; text-align: left; font-family: 'Courier New', Courier, monospace; font-size: 14px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Data Normalization Tool</h1>
+        <p>This tool will find users with a combined class (e.g., class: "12 NEET") and split it into two separate fields: `class: "12"` and `goal: "NEET"`. This fixes all data inconsistencies. <strong>Run this only once.</strong></p>
+        <button id="migrate-btn" class="btn">Start Normalization</button>
+        <div id="log-area">Normalization log will appear here...</div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", authDomain: "xperts-data.firebaseapp.com", projectId: "xperts-data", storageBucket: "xperts-data.firebasestorage.app", messagingSenderId: "934675149024", appId: "1:934675149024:web:23486a5f38f65f103ce085" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const migrateBtn = document.getElementById('migrate-btn');
+        const logArea = document.getElementById('log-area');
+        function log(message) { logArea.textContent += `> ${message}\n`; logArea.scrollTop = logArea.scrollHeight; }
+
+        migrateBtn.addEventListener('click', async () => {
+            if (!confirm("Are you sure? This will permanently modify your user data to the correct format.")) return;
+
+            migrateBtn.disabled = true; migrateBtn.textContent = "Working...";
+            log("Starting data normalization...");
+
+            try {
+                const snapshot = await db.collection('users').get();
+                log(`Fetched ${snapshot.size} total users. Analyzing...`);
+
+                const batch = db.batch();
+                let updatesMade = 0;
+
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    // Find users where 'class' is a string containing a space (e.g., "11 NEET")
+                    if (typeof user.class === 'string' && user.class.includes(' ')) {
+                        const [classNum, goal] = user.class.split(' ');
+                        
+                        if (classNum && goal && (goal === 'NEET' || goal === 'JEE')) {
+                            log(`Fixing user ${user.fullName} (ID: ${doc.id})...`);
+                            log(`  - From: class: "${user.class}"`);
+                            log(`  - To:   class: "${classNum}", goal: "${goal}"`);
+
+                            const userRef = db.collection('users').doc(doc.id);
+                            batch.update(userRef, { class: classNum, goal: goal });
+                            updatesMade++;
+                        }
+                    }
+                });
+
+                if (updatesMade > 0) {
+                    log(`Found ${updatesMade} records to fix. Committing changes...`);
+                    await batch.commit();
+                    log("All users have been successfully updated to the new data structure!");
+                } else {
+                    log("No users with the combined class format were found. Your data is already clean!");
+                }
+
+                migrateBtn.textContent = "Normalization Complete";
+                migrateBtn.style.backgroundColor = '#28a745';
+            } catch (error) {
+                log("An error occurred. Check the console for details.");
+                console.error("Normalization Error:", error);
+                migrateBtn.textContent = "Normalization Failed";
+            }
+        });
+    </script>
+</body>
+</html>
