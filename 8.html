@@ -6,31 +6,14 @@
     <title>Proceed to Your Class</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
-        html, body {
-            height: 100%; margin: 0; padding: 0; font-family: 'Poppins', sans-serif;
-        }
-        body {
-            display: flex; justify-content: center; align-items: center; text-align: center;
-            background-color: #f0f4f9; color: #333; transition: background-color 0.3s;
-        }
+        html, body { height: 100%; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { display: flex; justify-content: center; align-items: center; text-align: center; background-color: #f0f4f9; color: #333; transition: background-color 0.3s; }
         body.loading { cursor: wait; }
         body.ready { cursor: pointer; background-color: #e7f1ff; }
         body.error { cursor: default; background-color: #ffebee; }
         .message-box { padding: 20px; }
         h1 { font-size: 2.5rem; font-weight: 600; color: #1d2c3c; }
         p { font-size: 1.2rem; color: #5a6b7d; }
-        
-        /* NEW: Style for an action link/button */
-        #action-link {
-            display: none; /* Hidden by default */
-            margin-top: 25px;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 500;
-        }
     </style>
 </head>
 <body class="loading">
@@ -38,27 +21,30 @@
     <div class="message-box">
         <h1 id="main-heading">Loading Your Session...</h1>
         <p id="sub-text">Please wait while we prepare your destination.</p>
-        <!-- NEW: Action link for logout or other actions -->
-        <a href="#" id="action-link"></a>
     </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", authDomain: "xperts-data.firebaseapp.com", projectId: "xperts-data", storageBucket: "xperts-data.firebasestorage.app", messagingSenderId: "934675149024", appId: "1:934675149024:web:23486a5f38f65f103ce085", measurementId: "G-6TS06NTDZQ" };
+        const firebaseConfig = { apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", authDomain: "xperts-data.firebaseapp.com", projectId: "xperts-data", storageBucket: "xperts-data.firebasestorage.app", messagingSenderId: "934675149024", appId: "1:934675149024:web:23486a5f38f65f103ce085" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
         const bodyEl = document.querySelector('body');
         const mainHeadingEl = document.getElementById('main-heading');
         const subTextEl = document.getElementById('sub-text');
-        const actionLinkEl = document.getElementById('action-link');
 
+        // This map is expanded to include all possible keys we might generate
         const classUrlMap = {
             '6': 'https://abc.xyz/6', '7': 'https://abc.xyz/7', '8': 'https://abc.xyz/8',
-            '9': 'https://abc.xyz/9', '10': 'https://abc.xyz/10', '11 NEET': 'https://abc.xyz/N11',
-            '11 JEE': 'https://abc.xyz/J11', '12 NEET': 'https://abc.xyz/N12', '12 JEE': 'https://abc.xyz/J12'
+            '9': 'https://abc.xyz/9', '10': 'https://abc.xyz/10',
+            // Composite keys for separate class/goal fields
+            '11-NEET': 'https://abc.xyz/N11', '11-JEE': 'https://abc.xyz/J11',
+            '12-NEET': 'https://abc.xyz/N12', '12-JEE': 'https://abc.xyz/J12',
+            // Keys for the combined class field (e.g., "11 NEET")
+            '11 NEET': 'https://abc.xyz/N11', '11 JEE': 'https://abc.xyz/J11',
+            '12 NEET': 'https://abc.xyz/N12', '12 JEE': 'https://abc.xyz/J12'
         };
 
         function showMessage(heading, subtext, status = 'loading') {
@@ -66,23 +52,11 @@
             subTextEl.textContent = subtext;
             bodyEl.className = status;
         }
-        
-        // NEW: Function to show a logout link in case of error
-        function showLogoutLink() {
-            actionLinkEl.textContent = 'Logout and Go to Login';
-            actionLinkEl.style.display = 'inline-block';
-            actionLinkEl.addEventListener('click', (e) => {
-                e.preventDefault();
-                localStorage.clear();
-                window.location.href = '1.html';
-            });
-        }
 
         document.addEventListener('DOMContentLoaded', async () => {
             const userId = localStorage.getItem('loggedInUserId');
             if (!userId) {
-                showMessage('Access Denied', 'You are not logged in.', 'error');
-                setTimeout(() => { window.location.href = '1.html'; }, 3000);
+                showMessage('Access Denied', 'You are not logged in. Please log in to continue.', 'error');
                 return;
             }
 
@@ -90,43 +64,51 @@
                 const userDoc = await db.collection('users').doc(userId).get();
                 if (!userDoc.exists) {
                     showMessage('Error', 'Your user profile could not be found.', 'error');
-                    showLogoutLink();
                     return;
                 }
 
                 const userData = userDoc.data();
-                const userRole = userData.role;
-                const userClass = userData.class;
+                const { class: userClass, goal: userGoal, role: userRole } = userData;
 
-                // --- FIX 1: HANDLE DIFFERENT ROLES ---
-                if (userRole === 'Admin' || userRole === 'Teacher') {
-                    const dashboardUrl = userRole === 'Admin' ? '3.html' : 'https://apple.com';
-                    showMessage('Redirecting...', `This page is for students. As a ${userRole}, you are being sent to your dashboard.`);
-                    setTimeout(() => { window.location.href = dashboardUrl; }, 2500);
+                if (userRole !== 'Student') {
+                    showMessage('Access Denied', 'This page is for students only.', 'error');
                     return;
                 }
-                
-                // --- FIX 2: HANDLE INCOMPLETE STUDENT PROFILE ---
-                if (userRole === 'Student' && !userClass) {
-                    showMessage('Profile Incomplete', 'Your student profile is missing a class. Please contact support to fix your account.', 'error');
-                    showLogoutLink();
+                if (!userClass) {
+                    showMessage('Profile Incomplete', 'Your student profile has no class assigned. Please contact support.', 'error');
                     return;
                 }
 
-                // Proceed only if the user is a student with a class
-                const redirectUrl = classUrlMap[userClass];
+                // --- ROBUST LOGIC TO DETERMINE THE LOOKUP KEY ---
+                let lookupKey = '';
+
+                // Case 1: The class field is combined (e.g., "11 NEET"). This is the most specific.
+                if (typeof userClass === 'string' && userClass.includes(' ')) {
+                    lookupKey = userClass;
+                } 
+                // Case 2: The goal is specific (NEET/JEE)
+                else if (userGoal === 'NEET' || userGoal === 'JEE') {
+                    // Normalize class (e.g., "11th" -> "11")
+                    const normalizedClass = userClass.toString().replace('th', '');
+                    lookupKey = `${normalizedClass}-${userGoal}`; // Creates "11-NEET"
+                } 
+                // Case 3: Simple class (e.g., "6", "7th")
+                else {
+                    // Normalize the class to just a number
+                    lookupKey = userClass.toString().replace('th', '');
+                }
+                // --- END OF ROBUST LOGIC ---
+
+                const redirectUrl = classUrlMap[lookupKey];
 
                 if (!redirectUrl) {
-                    // This error now means the class exists but is not in our map (e.g. "5th")
-                    showMessage('Configuration Error', `Your class ("${userClass}") is not configured for redirection. Please contact support.`, 'error');
-                    showLogoutLink();
+                    showMessage('Configuration Error', `Could not find a valid destination for your profile (Key: "${lookupKey}"). Please contact support.`, 'error');
                     return;
                 }
 
                 // Success Case
-                showMessage('Ready to Go!', 'Click anywhere on the page to proceed to your class material.');
+                showMessage('Ready to Go!', 'Click anywhere on the page to proceed.');
                 bodyEl.classList.add('ready');
-
                 bodyEl.addEventListener('click', () => {
                     showMessage('Redirecting...', 'Please wait.');
                     window.location.href = redirectUrl;
@@ -135,7 +117,6 @@
             } catch (error) {
                 console.error("Error fetching user data:", error);
                 showMessage('An Error Occurred', 'We could not fetch your profile. Please try again later.', 'error');
-                showLogoutLink();
             }
         });
     </script>
