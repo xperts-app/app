@@ -3,118 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard (Open Access)</title>
+    <title>Admin - User Management</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f4f6f8;
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f4f9;
             margin: 0;
-            padding: 2rem;
-            color: #333;
+            padding: 20px;
         }
         .container {
             max-width: 1200px;
             margin: auto;
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         }
         h1 {
-            color: #1a2b48;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 1rem;
-            margin-bottom: 2rem;
-        }
-        #loading {
             text-align: center;
-            font-size: 1.2rem;
-            color: #777;
+            color: #1d2c3c;
+            margin-bottom: 30px;
         }
-        .user-table {
+        table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed; /* Helps with consistent column widths */
         }
-        .user-table th, .user-table td {
-            border: 1px solid #ddd;
-            padding: 12px;
+        th, td {
+            padding: 15px;
             text-align: left;
-            word-wrap: break-word; /* Prevents long text from breaking layout */
+            border-bottom: 1px solid #ddd;
         }
-        .user-table th {
-            background-color: #f2f2f2;
+        th {
+            background-color: #f8f9fa;
             font-weight: 600;
         }
-        select, .toggle-btn, .action-link {
-            padding: 6px 10px;
-            border-radius: 5px;
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        select, .action-link {
+            padding: 8px 12px;
+            border-radius: 6px;
             border: 1px solid #ccc;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        .toggle-btn {
-            color: white;
-            font-weight: 500;
-            border: none;
-        }
-        .toggle-btn.allowed {
-            background-color: #28a745;
-        }
-        .toggle-btn.not-allowed {
-            background-color: #dc3545;
+            background-color: #fff;
         }
         .action-link {
             text-decoration: none;
-            background-color: #007bff;
-            color: white;
-            display: inline-block;
+            color: #007bff;
+            font-weight: 500;
         }
         .action-link:hover {
-            background-color: #0056b3;
+            background-color: #e7f1ff;
         }
-        .header-note {
-             float: right;
-             font-size: 0.9rem;
-             color: #666;
-             font-weight: normal;
-             margin-top: 10px;
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
         }
-
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #28a745;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>
-            User Management
-            <span class="header-note">This is an open access panel.</span>
-        </h1>
-        <div id="loading">Loading users...</div>
-        <div style="overflow-x:auto;"> <!-- Makes table responsive on small screens -->
-            <table id="users-table-container" class="user-table" style="display:none;">
+        <h1>Admin - User Management</h1>
+        <div style="overflow-x:auto;">
+            <table id="users-table">
                 <thead>
                     <tr>
                         <th>Full Name</th>
                         <th>Mobile</th>
+                        <th>Email</th>
                         <th>Goal</th>
+                        <th>Class</th>
                         <th>Role</th>
-                        <th>Approval Status</th>
-                        <th>Actions</th>
+                        <th>Allow Student</th>
+                        <th>Details</th>
                     </tr>
                 </thead>
-                <tbody id="user-list">
-                    <!-- User rows will be injected here by JS -->
+                <tbody>
+                    <!-- User rows will be inserted here -->
                 </tbody>
             </table>
         </div>
     </div>
-
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
             authDomain: "xperts-data.firebaseapp.com",
@@ -127,96 +139,99 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // This page is now open access. The user list will load for any visitor.
-        window.onload = () => {
-            loadUsers();
-        };
+        // Admin Auth Guard
+        document.addEventListener('DOMContentLoaded', () => {
+            const loggedInRole = localStorage.getItem('loggedInUserRole');
+            if (loggedInRole !== 'Admin') {
+                alert('Access Denied. You must be an admin to view this page.');
+                window.location.href = '1.html';
+            } else {
+                loadUsers();
+            }
+        });
 
         async function loadUsers() {
-            const loadingDiv = document.getElementById('loading');
-            const table = document.getElementById('users-table-container');
-            const userListBody = document.getElementById('user-list');
-
+            const tableBody = document.querySelector('#users-table tbody');
+            tableBody.innerHTML = '<tr><td colspan="8">Loading users...</td></tr>';
+            
             try {
-                // Listen for real-time updates instead of a single get()
-                db.collection('users').onSnapshot(snapshot => {
-                    userListBody.innerHTML = ''; // Clear list on each update
+                const snapshot = await db.collection('users').get();
+                tableBody.innerHTML = ''; // Clear loading message
+
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    const userId = doc.id;
                     
-                    if (snapshot.empty) {
-                        userListBody.innerHTML = '<tr><td colspan="6">No users found.</td></tr>';
-                    }
+                    const row = document.createElement('tr');
+                    
+                    // Allow toggle is only for students
+                    const allowSwitch = user.role === 'Student' ? `
+                        <label class="switch">
+                            <input type="checkbox" class="allow-toggle" data-id="${userId}" ${user.isAllowed ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    ` : 'N/A';
 
-                    snapshot.forEach(doc => {
-                        const user = doc.data();
-                        const userId = doc.id;
-                        
-                        const row = document.createElement('tr');
-
-                        // Name, Mobile, Goal
-                        row.innerHTML = `
-                            <td>${user.fullName || 'N/A'}</td>
-                            <td>${user.mobile || 'N/A'}</td>
-                            <td>${user.goal || 'N/A'}</td>
-                        `;
-
-                        // Role Dropdown
-                        const roleCell = document.createElement('td');
-                        const roleSelect = document.createElement('select');
-                        roleSelect.innerHTML = `
-                            <option value="Student" ${user.role === 'Student' ? 'selected' : ''}>Student</option>
-                            <option value="Teacher" ${user.role === 'Teacher' ? 'selected' : ''}>Teacher</option>
-                            <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
-                        `;
-                        roleSelect.onchange = () => updateUser(userId, { role: roleSelect.value });
-                        roleCell.appendChild(roleSelect);
-                        row.appendChild(roleCell);
-
-                        // Approval Status Button
-                        const statusCell = document.createElement('td');
-                        const statusBtn = document.createElement('button');
-                        statusBtn.textContent = user.isAllowed ? 'Allowed' : 'Not Allowed';
-                        statusBtn.className = `toggle-btn ${user.isAllowed ? 'allowed' : 'not-allowed'}`;
-                        statusBtn.onclick = () => updateUser(userId, { isAllowed: !user.isAllowed });
-                        statusCell.appendChild(statusBtn);
-                        row.appendChild(statusCell);
-                        
-                        // Actions (Edit Profile Link)
-                        const actionCell = document.createElement('td');
-                        const editLink = document.createElement('a');
-                        editLink.textContent = 'Edit Profile';
-                        editLink.className = 'action-link';
-                        editLink.href = `5.html?id=${userId}`; // Link to edit page with user's ID
-                        actionCell.appendChild(editLink);
-                        row.appendChild(actionCell);
-
-                        userListBody.appendChild(row);
-                    });
-
-                    loadingDiv.style.display = 'none';
-                    table.style.display = 'table';
-                }, error => {
-                    // Handle errors during real-time listening
-                    console.error("Error listening to user collection: ", error);
-                    loadingDiv.textContent = 'Failed to load users. Check console for errors.';
+                    row.innerHTML = `
+                        <td>${user.fullName || 'N/A'}</td>
+                        <td>${user.mobileNumber || 'N/A'}</td>
+                        <td>${user.email || 'N/A'}</td>
+                        <td>${user.goal || 'N/A'}</td>
+                        <td>${user.class || 'N/A'}</td>
+                        <td>
+                            <select class="role-select" data-id="${userId}">
+                                <option value="Student" ${user.role === 'Student' ? 'selected' : ''}>Student</option>
+                                <option value="Teacher" ${user.role === 'Teacher' ? 'selected' : ''}>Teacher</option>
+                                <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                            </select>
+                        </td>
+                        <td>${allowSwitch}</td>
+                        <td><a href="4.html?uid=${userId}" class="action-link">View</a></td>
+                    `;
+                    tableBody.appendChild(row);
                 });
+                
+                addEventListeners();
 
             } catch (error) {
-                console.error("Error setting up user listener: ", error);
-                loadingDiv.textContent = 'Failed to load users.';
+                console.error("Error fetching users: ", error);
+                tableBody.innerHTML = '<tr><td colspan="8">Failed to load users.</td></tr>';
             }
         }
         
-        async function updateUser(userId, dataToUpdate) {
-            try {
-                await db.collection('users').doc(userId).update(dataToUpdate);
-                console.log(`User ${userId} updated successfully.`);
-                // No need to call loadUsers() again because onSnapshot handles real-time updates.
-            } catch (error) {
-                console.error("Error updating user: ", error);
-                alert('Failed to update user.');
-            }
-        }
+        function addEventListeners() {
+            // Role change
+            document.querySelectorAll('.role-select').forEach(select => {
+                select.addEventListener('change', async (e) => {
+                    const userId = e.target.dataset.id;
+                    const newRole = e.target.value;
+                    try {
+                        await db.collection('users').doc(userId).update({ role: newRole });
+                        alert('Role updated successfully!');
+                        loadUsers(); // Reload to reflect changes (e.g., hiding allow switch)
+                    } catch (error) {
+                        console.error("Error updating role:", error);
+                        alert('Failed to update role.');
+                    }
+                });
+            });
 
+            // Allow toggle change
+            document.querySelectorAll('.allow-toggle').forEach(toggle => {
+                toggle.addEventListener('change', async (e) => {
+                    const userId = e.target.dataset.id;
+                    const isAllowed = e.target.checked;
+                    try {
+                        await db.collection('users').doc(userId).update({ isAllowed: isAllowed });
+                        alert(`User ${isAllowed ? 'allowed' : 'disallowed'} successfully!`);
+                    } catch (error) {
+                        console.error("Error updating status:", error);
+                        alert('Failed to update status.');
+                    }
+                });
+            });
+        }
     </script>
+
 </body>
 </html>
