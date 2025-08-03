@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Attendance Record</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #1d2c3c;
+        }
+        h2 {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        .status-present {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .status-absent {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        #message-area {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: 500;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Attendance Record</h1>
+        <h2 id="student-name"></h2>
+        
+        <div style="overflow-x:auto;">
+            <table id="attendance-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Attendance data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+        <p id="message-area">Loading attendance history...</p>
+    </div>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
+            authDomain: "xperts-data.firebaseapp.com",
+            projectId: "xperts-data",
+            storageBucket: "xperts-data.firebasestorage.app",
+            messagingSenderId: "934675149024",
+            appId: "1:934675149024:web:23486a5f38f65f103ce085",
+            measurementId: "G-6TS06NTDZQ"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM Elements
+        const studentNameEl = document.getElementById('student-name');
+        const tableBody = document.querySelector('#attendance-table tbody');
+        const messageArea = document.getElementById('message-area');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const userId = localStorage.getItem('loggedInUserId');
+
+            if (!userId) {
+                messageArea.textContent = 'You are not logged in. Please log in to view attendance.';
+                studentNameEl.textContent = 'Unknown User';
+                return;
+            }
+
+            try {
+                // Fetch user's name first
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    studentNameEl.textContent = `For: ${userDoc.data().fullName}`;
+                }
+
+                // IMPORTANT: These queries require a Firestore index. 
+                // Firebase will provide a link in the console to create them if they don't exist.
+                // One index for 'presentStudentIds' and one for 'absentStudentIds'.
+                const presentQuery = db.collection('attendance').where('presentStudentIds', 'array-contains', userId).get();
+                const absentQuery = db.collection('attendance').where('absentStudentIds', 'array-contains', userId).get();
+
+                const [presentSnapshot, absentSnapshot] = await Promise.all([presentQuery, absentQuery]);
+                
+                const allRecords = [];
+
+                presentSnapshot.forEach(doc => {
+                    allRecords.push({ date: doc.data().date, status: 'Present' });
+                });
+
+                absentSnapshot.forEach(doc => {
+                    allRecords.push({ date: doc.data().date, status: 'Absent' });
+                });
+
+                if (allRecords.length === 0) {
+                    messageArea.textContent = 'No attendance records found.';
+                    return;
+                }
+                
+                // Sort records by date, most recent first
+                allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                tableBody.innerHTML = ''; // Clear table
+                allRecords.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.date}</td>
+                        <td class="status-${record.status.toLowerCase()}">${record.status}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                messageArea.textContent = ''; // Hide loading message
+
+            } catch (error) {
+                console.error("Error fetching attendance:", error);
+                messageArea.textContent = 'Could not load attendance data. Please check the console.';
+            }
+        });
+    </script>
+</body>
+</html>
