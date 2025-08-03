@@ -98,15 +98,18 @@
         
         <div class="selection-area">
             <label for="class-select">Select Class:</label>
+            <!-- UPDATED: New class options -->
             <select id="class-select">
                 <option value="">-- Please choose a class --</option>
-                <option value="6th">6th</option>
-                <option value="7th">7th</option>
-                <option value="8th">8th</option>
-                <option value="9th">9th</option>
-                <option value="10th">10th</option>
-                <option value="11th">11th</option>
-                <option value="12th">12th</option>
+                <option value="6">6th</option>
+                <option value="7">7th</option>
+                <option value="8">8th</option>
+                <option value="9">9th</option>
+                <option value="10">10th</option>
+                <option value="11 NEET">11th NEET</option>
+                <option value="11 JEE">11th JEE</option>
+                <option value="12 NEET">12th NEET</option>
+                <option value="12 JEE">12th JEE</option>
             </select>
         </div>
 
@@ -156,13 +159,14 @@
 
             try {
                 // Fetch only users who are students in the selected class
+                // This query now looks for class names like "11 NEET"
                 const snapshot = await db.collection('users')
                     .where('class', '==', selectedClass)
                     .where('role', '==', 'Student')
                     .get();
 
                 if (snapshot.empty) {
-                    studentListContainer.innerHTML = '<p>No students found for this class.</p>';
+                    studentListContainer.innerHTML = '<p>No students found for this class. Please ensure student profiles have the correct class name.</p>';
                     return;
                 }
 
@@ -203,7 +207,8 @@
             const selectedClass = classSelect.value;
             const date = new Date();
             const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            const docId = `${selectedClass}_${dateString}`;
+            // Use URL-friendly ID by replacing spaces
+            const docId = `${selectedClass.replace(/\s+/g, '-')}_${dateString}`;
 
             const presentStudentIds = [];
             const absentStudentIds = [];
@@ -246,8 +251,6 @@
                     date: dateString,
                     presentStudentIds: presentStudentIds,
                     absentStudentIds: absentStudentIds,
-                    // Optional: store full records for easier debugging if needed
-                    // records: studentRecords 
                 });
 
                 messageArea.textContent = 'Attendance saved successfully!';
