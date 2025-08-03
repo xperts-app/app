@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proceed to Your Class</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+        
+        /* Make the clickable area truly full-page */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-color: #f0f4f9;
+            color: #333;
+            transition: background-color 0.3s;
+        }
+
+        /* The default state until the redirect is ready */
+        body.loading {
+            cursor: wait;
+        }
+        
+        /* The state when the page is ready to be clicked */
+        body.ready {
+            cursor: pointer;
+            background-color: #e7f1ff; /* A subtle hint that it's interactive */
+        }
+        
+        /* The state when an error occurs */
+        body.error {
+            cursor: not-allowed;
+            background-color: #ffebee; /* A subtle hint for an error */
+        }
+
+        .message-box {
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #1d2c3c;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #5a6b7d;
+        }
+
+    </style>
+</head>
+<body class="loading">
+
+    <div class="message-box">
+        <h1 id="main-heading">Loading Your Session...</h1>
+        <p id="sub-text">Please wait while we prepare your destination.</p>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
+            authDomain: "xperts-data.firebaseapp.com",
+            projectId: "xperts-data",
+            storageBucket: "xperts-data.firebasestorage.app",
+            messagingSenderId: "934675149024",
+            appId: "1:934675149024:web:23486a5f38f65f103ce085",
+            measurementId: "G-6TS06NTDZQ"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM Elements
+        const bodyEl = document.querySelector('body');
+        const mainHeadingEl = document.getElementById('main-heading');
+        const subTextEl = document.getElementById('sub-text');
+
+        // URL Mapping based on user's class
+        const classUrlMap = {
+            '6': 'https://abc.xyz/6',
+            '7': 'https://abc.xyz/7',
+            '8': 'https://abc.xyz/8',
+            '9': 'https://abc.xyz/9',
+            '10': 'https://abc.xyz/10',
+            '11 NEET': 'https://abc.xyz/N11',
+            '11 JEE': 'https://abc.xyz/J11',
+            '12 NEET': 'https://abc.xyz/N12',
+            '12 JEE': 'https://abc.xyz/J12'
+        };
+
+        function showMessage(heading, subtext, status = 'loading') {
+            mainHeadingEl.textContent = heading;
+            subTextEl.textContent = subtext;
+            bodyEl.className = status;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const userId = localStorage.getItem('loggedInUserId');
+
+            // 1. Check if user is logged in
+            if (!userId) {
+                showMessage('Access Denied', 'You are not logged in. Please log in to continue.', 'error');
+                // Optional: Redirect back to login page after a delay
+                setTimeout(() => { window.location.href = '1.html'; }, 3000);
+                return;
+            }
+
+            try {
+                // 2. Fetch user data from Firestore
+                const userDoc = await db.collection('users').doc(userId).get();
+
+                if (!userDoc.exists) {
+                    showMessage('Error', 'Your user profile could not be found.', 'error');
+                    return;
+                }
+
+                const userData = userDoc.data();
+                const userClass = userData.class;
+
+                // 3. Find the correct redirect URL from the map
+                const redirectUrl = classUrlMap[userClass];
+
+                if (!redirectUrl) {
+                    showMessage('Configuration Error', `Could not find a valid destination for your class ("${userClass || 'N/A'}"). Please contact support.`, 'error');
+                    return;
+                }
+
+                // 4. If everything is successful, prepare the page for redirection
+                showMessage('Ready to Go!', 'Click anywhere on the page to proceed to your class material.');
+                bodyEl.classList.add('ready'); // Add 'ready' class without removing 'loading'
+
+                // 5. Add the click event listener to the entire body
+                bodyEl.addEventListener('click', () => {
+                    showMessage('Redirecting...', 'Please wait.');
+                    window.location.href = redirectUrl;
+                });
+
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+                showMessage('An Error Occurred', 'We could not fetch your profile. Please try again later.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
