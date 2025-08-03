@@ -3,98 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome - Class Schedules</title>
+    <title>Login - ALLEN</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        #notification-banner {
-            display: none; /* Hidden by default */
-            background-color: #28a745;
-            color: white;
-            padding: 15px;
-            position: fixed;
-            top: 0;
-            width: 100%;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        .illustration {
+            width: 120px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .btn {
+            background-color: #007aff;
+            color: white;
+            border: none;
+            padding: 14px 0;
+            width: 100%;
+            border-radius: 8px;
             font-size: 18px;
-            z-index: 1000;
-        }
-        #notification-banner a {
-            color: #fff;
-            font-weight: bold;
-            text-decoration: underline;
-        }
-        #notification-banner .close-btn {
-            float: right;
+            font-weight: 600;
             cursor: pointer;
-            font-weight: bold;
-            margin-right: 20px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+        .error {
+            color: #d93025;
+            margin-top: 10px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <!-- This banner will be shown if there's a new schedule -->
-    <div id="notification-banner">
-        <span>A new class schedule has been posted!</span>
-        <a href="2.html">View Now</a>
-        <span class="close-btn" onclick="dismissNotification()">X</span>
+    <div class="container">
+        <img src="https://i.imgur.com/k2nL41z.png" alt="Illustration" class="illustration">
+        <h1>Welcome Back!</h1>
+        <p>Please enter your details to continue.</p>
+
+        <div id="mobile-group" class="input-group">
+            <label for="mobile">Mobile Number</label>
+            <input type="tel" id="mobile" placeholder="Enter your 10-digit mobile number" maxlength="10">
+        </div>
+
+        <div id="password-group" class="input-group hidden">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter your password">
+        </div>
+
+        <button id="continue-btn" class="btn">Continue</button>
+        <p id="error-msg" class="error hidden"></p>
     </div>
 
-    <h1>Welcome to Our Site</h1>
-    <p>We will notify you if there are new class schedules.</p>
-    <a href="2.html">Go to Live Class Schedule Page</a>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- We use type="module" to allow import/export -->
-    <script type="module">
-        // Import the database connection from our init file
-        import { db } from './firebase-init.js';
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
+          authDomain: "xperts-data.firebaseapp.com",
+          projectId: "xperts-data",
+          storageBucket: "xperts-data.appspot.com",
+          messagingSenderId: "934675149024",
+          appId: "1:934675149024:web:23486a5f38f65f103ce085",
+          measurementId: "G-6TS06NTDZQ"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
         
-        // Import the functions we need from Firestore
-        import { collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        const mobileInput = document.getElementById('mobile');
+        const passwordInput = document.getElementById('password');
+        const passwordGroup = document.getElementById('password-group');
+        const continueBtn = document.getElementById('continue-btn');
+        const errorMsg = document.getElementById('error-msg');
+        
+        let isUserRegistered = false;
 
-        const notificationBanner = document.getElementById('notification-banner');
-        let latestScheduleTimestamp = null;
+        continueBtn.addEventListener('click', async () => {
+            const mobile = mobileInput.value.trim();
+            errorMsg.classList.add('hidden');
 
-        async function checkNewSchedule() {
-            try {
-                // Create a query to get the single most recent document based on createdAt
-                const schedulesRef = collection(db, "schedules");
-                const q = query(schedulesRef, orderBy("createdAt", "desc"), limit(1));
+            if (mobile.length !== 10 || !/^\d{10}$/.test(mobile)) {
+                errorMsg.textContent = "Please enter a valid 10-digit mobile number.";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
 
-                const querySnapshot = await getDocs(q);
+            if (!isUserRegistered) {
+                // Step 1: Check if mobile number exists
+                try {
+                    const userDoc = await db.collection('users').doc(mobile).get();
 
-                if (!querySnapshot.empty) {
-                    const latestDoc = querySnapshot.docs[0];
-                    const latestData = latestDoc.data();
-                    
-                    // The createdAt field is a Firestore Timestamp object
-                    latestScheduleTimestamp = latestData.createdAt.toMillis(); // Convert to milliseconds
-                    
-                    // Get the timestamp of the last schedule the user saw
-                    const lastSeenTimestamp = localStorage.getItem('lastSeenScheduleTimestamp');
-
-                    // If the latest schedule is newer than the one they last saw (or if they've never seen one)
-                    if (!lastSeenTimestamp || latestScheduleTimestamp > parseInt(lastSeenTimestamp)) {
-                        notificationBanner.style.display = 'block';
+                    if (userDoc.exists) {
+                        isUserRegistered = true;
+                        mobileInput.disabled = true;
+                        passwordGroup.classList.remove('hidden');
+                        continueBtn.textContent = "Login";
+                    } else {
+                        // User not registered, redirect to signup
+                        localStorage.setItem('signupMobileNumber', mobile);
+                        window.location.href = '2.html';
                     }
+                } catch (error) {
+                    console.error("Error checking user: ", error);
+                    errorMsg.textContent = "An error occurred. Please try again.";
+                    errorMsg.classList.remove('hidden');
                 }
-            } catch (error) {
-                console.error("Error checking for new schedule: ", error);
-            }
-        }
-        
-        // Function to hide the banner and update localStorage
-        window.dismissNotification = function() {
-            notificationBanner.style.display = 'none';
-            // Store the timestamp of the new schedule so the user isn't notified again
-            if (latestScheduleTimestamp) {
-                localStorage.setItem('lastSeenScheduleTimestamp', latestScheduleTimestamp);
-            }
-        }
+            } else {
+                // Step 2: Validate password and log in
+                const password = passwordInput.value;
+                if (!password) {
+                    errorMsg.textContent = "Password cannot be empty.";
+                    errorMsg.classList.remove('hidden');
+                    return;
+                }
 
-        // Run the check when the page loads
-        checkNewSchedule();
+                try {
+                    const userDoc = await db.collection('users').doc(mobile).get();
+                    const userData = userDoc.data();
+
+                    if (userData.password === password) {
+                        // Password is correct
+                        if (userData.isAllowed) {
+                             // User is allowed, redirect to their profile page
+                             window.location.href = `profile.html?user=${mobile}`;
+                        } else {
+                            // User is not allowed by admin yet
+                            window.location.href = 'https://www.nokia.com';
+                        }
+                    } else {
+                        errorMsg.textContent = "Incorrect password. Please try again.";
+                        errorMsg.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Error logging in: ", error);
+                    errorMsg.textContent = "Login failed. Please try again.";
+                    errorMsg.classList.remove('hidden');
+                }
+            }
+        });
     </script>
-
 </body>
 </html>
