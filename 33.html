@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - User Management</title>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');:root{--primary-blue:#007bff;--danger-red:#dc3545;--success-green:#28a745;--warning-orange:#fd7e14}body{font-family:'Poppins',sans-serif;background-color:#f4f7f9;margin:0;padding:20px}.container{max-width:1200px;margin:auto;background-color:#fff;padding:30px;border-radius:12px;box-shadow:0 5px 25px rgba(0,0,0,.07)}h1{text-align:center;color:#1d2c3c;margin-bottom:20px}.controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:15px}#search-box{padding:10px 15px;font-size:16px;border:1px solid #ddd;border-radius:8px;width:300px;max-width:100%}.fixer-btn{border:none;padding:10px 15px;border-radius:8px;font-weight:500;cursor:pointer;transition:background-color .2s}#fix-class-type-btn{background-color:#ffc107}#unify-goal-btn{background-color:#17a2b8;color:#fff}#bulk-action-bar{display:none;background-color:#e9f2ff;padding:15px;border-radius:8px;margin-bottom:20px;align-items:center;gap:15px;flex-wrap:wrap}#bulk-action-bar.visible{display:flex}#selection-count{font-weight:600;color:#333}.bulk-btn{border:none;padding:8px 15px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .2s}.bulk-btn:hover{opacity:.8}.btn-allow{background-color:var(--success-green);color:#fff}.btn-deny{background-color:var(--warning-orange);color:#fff}.btn-delete-bulk{background-color:var(--danger-red);color:#fff}.table-wrapper{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:15px;text-align:left;border-bottom:1px solid #eef2f5;white-space:nowrap}th{background-color:#f8f9fa;font-weight:600}tr.selected{background-color:#f0f6ff!important}tr:hover{background-color:#fbfcfe}select,.action-link,.btn-delete-single{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background-color:#fff;text-decoration:none;font-weight:500}.btn-delete-single{border-color:var(--danger-red);color:var(--danger-red);cursor:pointer}.btn-delete-single:hover{background-color:#fbebee}.switch{position:relative;display:inline-block;width:50px;height:24px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.4s;border-radius:24px}.slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background-color:#fff;transition:.4s;border-radius:50%}input:checked+.slider{background-color:var(--success-green)}input:checked+.slider:before{transform:translateX(26px)}</style>
+</head>
+<body>
+    <div class="container">
+        <h1>User Management Dashboard</h1>
+        <div class="controls">
+            <input type="text" id="search-box" placeholder="Search by name, email, or mobile...">
+            <div>
+                <button id="fix-class-type-btn" class="fixer-btn">Fix Class Data Types</button>
+                <button id="unify-goal-btn" class="fixer-btn">Unify 11/12 Goal Data</button>
+            </div>
+        </div>
+        <!-- ... rest of the UI (bulk action bar, table) is the same ... -->
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", /* ... */ };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        // ... (All previous variables and functions for rendering the table, search, and bulk actions are the same) ...
+        const loadUsers = async () => { /* ... */ };
+
+        // --- Data Fixer Tool #1: Class Type ---
+        document.getElementById('fix-class-type-btn').addEventListener('click', async () => { /* ... code from previous response ... */ });
+
+        // --- Data Fixer Tool #2: Unify Goals ---
+        document.getElementById('unify-goal-btn').addEventListener('click', async () => {
+            if (!confirm("This will find all students with 'NEET' or 'JEE' goals and standardize them to 'Prep (11-12)'. This is a critical fix. Continue?")) return;
+            const btn = document.getElementById('unify-goal-btn'); btn.disabled = true; btn.textContent = 'Working...';
+            try {
+                const batch = db.batch(); let updates = 0;
+                const neetQuery = db.collection('users').where('goal', '==', 'NEET').get();
+                const jeeQuery = db.collection('users').where('goal', '==', 'JEE').get();
+                const [neetResults, jeeResults] = await Promise.all([neetQuery, jeeQuery]);
+                
+                const processSnapshot = (snapshot) => { snapshot.forEach(doc => { batch.update(db.collection('users').doc(doc.id), { goal: "Prep (11-12)" }); updates++; }); };
+                processSnapshot(neetResults); processSnapshot(jeeResults);
+
+                if (updates > 0) { await batch.commit(); alert(`Success! Unified ${updates} user records.`); loadUsers(); } 
+                else { alert("No records with old NEET/JEE goals found."); }
+            } catch (error) { console.error("Goal unification failed:", error); alert("An error occurred."); } 
+            finally { btn.disabled = false; btn.textContent = 'Unify 11/12 Goal Data'; }
+        });
+
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', loadUsers);
+    </script>
+</body>
+</html>
