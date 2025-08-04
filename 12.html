@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Exam Results - ALLEN Digital</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--primary-blue:#0066ff;--background-color:#f0f4f9;--text-dark:#1d2c3c;--text-light:#5a6b7d;--border-color:#eef2f5;}
+        body{font-family:'Poppins',sans-serif;background-color:var(--background-color);margin:0;padding-top:5vh}
+        .main-container{max-width:700px;margin:auto;padding:20px;text-align:center}
+        .illustration{width:150px;height:150px;margin:0 auto 20px auto}
+        h2{font-weight:600;font-size:28px;color:var(--text-dark);margin-bottom:8px}
+        p.subtitle{color:var(--text-light);font-size:16px;margin-bottom:30px}
+        .results-container{background-color:white;border-radius:16px;padding:10px 20px;text-align:left;box-shadow:0 8px 30px rgba(0,0,0,0.05)}
+        table{width:100%;border-collapse:collapse}
+        th, td{padding:18px 0;text-align:left;border-bottom:1px solid var(--border-color)}
+        th{color:var(--text-light);font-weight:500;font-size:14px}
+        td{color:var(--text-dark);font-weight:500;vertical-align:middle}
+        tr:last-child td{border-bottom:none}
+        .percentage{font-weight:600;font-size:1.1em}
+        .placeholder-text{padding:40px;color:var(--text-light);text-align:center}
+        .back-link{display:inline-block;margin-top:30px;color:var(--text-light);text-decoration:none;font-weight:500}
+        .back-link:hover{color:var(--primary-blue)}
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <svg class="illustration" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 3V7C14 7.26522 14.1054 7.51957 14.2929 7.70711C14.4804 7.89464 14.7348 8 15 8H19" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 21H7C6.46957 21 5.96086 20.7893 5.58579 20.4142C5.21071 20.0391 5 19.5304 5 19V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H14L19 8V19C19 19.5304 18.7893 20.0391 18.4142 20.4142C18.0391 20.7893 17.5304 21 17 21Z" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 17H15" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 13H15" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9H10" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        
+        <h2 id="page-title">My Exam Results</h2>
+        <p class="subtitle" id="sub-text">Your performance summary, sorted by most recent.</p>
+
+        <div class="results-container">
+            <table>
+                <thead><tr><th>Exam Name</th><th>Score</th><th style="text-align:right">Percentage</th></tr></thead>
+                <tbody id="results-tbody"><tr><td colspan="3"><p class="placeholder-text">Loading results...</p></td></tr></tbody>
+            </table>
+        </div>
+        <a href="4.html" class="back-link">← Back to Profile</a>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", authDomain: "xperts-data.firebaseapp.com", projectId: "xperts-data", storageBucket: "xperts-data.firebasestorage.app", messagingSenderId: "934675149024", appId: "1:934675149024:web:23486a5f38f65f103ce085" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const tableBody = document.getElementById('results-tbody');
+            const subText = document.getElementById('sub-text');
+            const userId = localStorage.getItem('loggedInUserId');
+
+            if (!userId) { alert("You must be logged in to view results."); window.location.href = '1.html'; return; }
+
+            try {
+                // This query requires a Firestore index on 'studentId'
+                const snapshot = await db.collection('results').where('studentId', '==', userId).orderBy('dateAdded', 'desc').get();
+
+                if (snapshot.empty) {
+                    tableBody.innerHTML = '<tr><td colspan="3"><p class="placeholder-text">No exam results found.</p></td></tr>';
+                    subText.textContent = "Your results will appear here once they are added by an admin.";
+                    return;
+                }
+                
+                tableBody.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const result = doc.data();
+                    const percentage = (result.marksObtained / result.totalMarks) * 100;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${result.examName}</td><td>${result.marksObtained} / ${result.totalMarks}</td><td style="text-align:right" class="percentage">${percentage.toFixed(1)}%</td>`;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Error fetching results:", error);
+                tableBody.innerHTML = '<tr><td colspan="3"><p class="placeholder-text" style="color:#dc3545;">Could not load results. An index might be required.</p></td></tr>';
+            }
+        });
+    </script>
+</body>
+</html>
