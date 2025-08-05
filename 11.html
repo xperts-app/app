@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - ALLEN</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&display=swap');
         body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f0f4f9;
+            font-family: 'Manrope', sans-serif;
+            background-color: #f0f4ff;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -20,14 +20,14 @@
             background-color: white;
             padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             text-align: center;
             max-width: 400px;
             width: 90%;
         }
         h1 {
             font-size: 24px;
-            font-weight: 600;
+            font-weight: 800;
             margin-bottom: 10px;
         }
         p {
@@ -36,92 +36,74 @@
         }
         .input-group {
             margin-bottom: 20px;
-            text-align: left;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
         }
         input {
             width: 100%;
-            padding: 12px 15px;
+            padding: 15px;
             border: 1px solid #ddd;
-            border-radius: 8px;
+            border-radius: 10px;
             box-sizing: border-box;
             font-size: 16px;
         }
-        .btn {
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
             background-color: #007bff;
             color: white;
-            border: none;
-            padding: 15px 0;
-            border-radius: 8px;
             font-size: 18px;
-            font-weight: 600;
-            width: 100%;
+            font-weight: 700;
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        .btn:hover {
+        button:hover {
             background-color: #0056b3;
         }
-        .btn:disabled {
-            background-color: #a0cffd;
-            cursor: not-allowed;
-        }
-        #password-container {
-            display: none;
-        }
-        .error-msg {
-            color: #d9534f;
-            margin-top: 10px;
-            min-height: 1.2em; /* Prevents layout shift */
-        }
-        /* Style for the auto-login message */
-        #auto-login-message {
-            display: none;
+        #recaptcha-container {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-
-    <!-- This container holds the login form -->
-    <div class="container" id="login-container">
+    <div class="container">
         <h1>Welcome to ALLEN</h1>
         <p>Please enter your mobile number to continue.</p>
-
-        <div id="login-form">
+        
+        <div id="login-view">
             <div class="input-group">
-                <label for="mobile">Mobile Number</label>
-                <input type="tel" id="mobile" name="mobile" placeholder="Enter your 10-digit mobile number" maxlength="10">
+                <input type="tel" id="phone-number" placeholder="Enter 10-digit mobile number">
             </div>
-            
-            <div id="password-container">
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Enter your password">
-                </div>
-            </div>
-
-            <button type="button" class="btn" id="submit-btn">Continue</button>
-            <p id="error-message" class="error-msg"></p>
+            <button id="sign-in-button">Send OTP</button>
         </div>
+
+        <div id="otp-view" style="display: none;">
+            <p>An OTP has been sent to your mobile number.</p>
+            <div class="input-group">
+                <input type="text" id="otp-code" placeholder="Enter 6-digit OTP">
+            </div>
+            <button id="verify-otp-button">Verify OTP</button>
+        </div>
+
+        <div id="password-view" style="display: none;">
+             <p>Welcome back! Please enter your password.</p>
+             <div class="input-group">
+                <input type="password" id="password" placeholder="Password">
+            </div>
+            <button id="login-with-password-button">Login</button>
+        </div>
+        
+        <div id="recaptcha-container"></div>
+        <p id="error-message" style="color: red; margin-top: 15px;"></p>
     </div>
 
-    <!-- This container is shown during auto-login -->
-    <div class="container" id="auto-login-message">
-        <h1>Welcome Back!</h1>
-        <p>You are already logged in. Redirecting you now...</p>
-    </div>
-
-
-    <!-- Firebase SDK -->
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // Firebase Config
+        // IMPORTANT: Replace with your project's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
             authDomain: "xperts-data.firebaseapp.com",
@@ -131,121 +113,127 @@
             appId: "1:934675149024:web:23486a5f38f65f103ce085",
             measurementId: "G-6TS06NTDZQ"
         };
+
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // --- NEW: AUTO-LOGIN CHECK ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const userId = localStorage.getItem('loggedInUserId');
-            const userRole = localStorage.getItem('loggedInUserRole');
+        const loginView = document.getElementById('login-view');
+        const otpView = document.getElementById('otp-view');
+        const passwordView = document.getElementById('password-view');
+        const signInButton = document.getElementById('sign-in-button');
+        const verifyOtpButton = document.getElementById('verify-otp-button');
+        const loginWithPasswordButton = document.getElementById('login-with-password-button');
+        const phoneNumberInput = document.getElementById('phone-number');
+        const otpInput = document.getElementById('otp-code');
+        const passwordInput = document.getElementById('password');
+        const errorMessage = document.getElementById('error-message');
 
-            if (userId && userRole) {
-                // User is already logged in, hide the form and show the message
-                document.getElementById('login-container').style.display = 'none';
-                document.getElementById('auto-login-message').style.display = 'block';
-                
-                // Redirect after a short delay
-                setTimeout(() => {
-                    // Note: 'isAllowed' is a string 'true' or 'false' in localStorage
-                    const isAllowed = localStorage.getItem('loggedInUserIsAllowed') === 'true';
+        let userEmailForPasswordLogin = '';
 
-                    switch (userRole) {
-                        case 'Student':
-                            window.location.href = isAllowed ? 'https://tv.apple.com' : 'https://nokia.com';
-                            break;
-                        case 'Teacher':
-                            window.location.href = 'https://apple.com';
-                            break;
-                        case 'Admin':
-                            window.location.href = '3.html';
-                            break;
-                        default:
-                            // Fallback if role is unknown
-                            window.location.href = 'https://nokia.com';
-                    }
-                }, 1500); // 1.5-second delay for the message to be visible
+        // Check if user is already logged in
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                console.log("User already logged in, redirecting to profile.");
+                window.location.href = '4.html'; 
+            }
+        });
+        
+        // Setup reCAPTCHA
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            'size': 'invisible',
+            'callback': (response) => {
+                // reCAPTCHA solved, allow signInWithPhoneNumber.
             }
         });
 
-
-        // DOM Elements
-        const mobileInput = document.getElementById('mobile');
-        const passwordContainer = document.getElementById('password-container');
-        const passwordInput = document.getElementById('password');
-        const submitBtn = document.getElementById('submit-btn');
-        const errorMessage = document.getElementById('error-message');
-
-        let isLoginState = false;
-        let userData = null;
-
-        submitBtn.addEventListener('click', async () => {
-            submitBtn.disabled = true;
-            errorMessage.textContent = '';
-            const mobileNumber = mobileInput.value.trim();
-
-            if (!/^\d{10}$/.test(mobileNumber)) {
-                errorMessage.textContent = 'Please enter a valid 10-digit mobile number.';
-                submitBtn.disabled = false;
+        signInButton.addEventListener('click', () => {
+            const phoneNumber = "+91" + phoneNumberInput.value;
+            if (phoneNumber.length !== 13) {
+                errorMessage.textContent = 'Please enter a valid 10-digit number.';
                 return;
             }
-
-            if (!isLoginState) {
-                try {
-                    const usersRef = db.collection('users');
-                    const snapshot = await usersRef.where('mobileNumber', '==', mobileNumber).get();
-                    
-                    if (snapshot.empty) {
-                        localStorage.setItem('mobileForSignup', mobileNumber);
-                        window.location.href = '2.html';
+            errorMessage.textContent = '';
+            
+            // Check if user with this phone number exists in Firestore
+            db.collection('users').where('phone', '==', phoneNumber).get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        // User is not registered -> Go to signup flow
+                        console.log("New user detected. Proceeding with OTP for signup.");
+                        sendOtp(phoneNumber, false);
                     } else {
-                        snapshot.forEach(doc => {
-                            userData = { id: doc.id, ...doc.data() };
+                        // User is registered -> Ask for password
+                        console.log("Registered user detected. Asking for password.");
+                        querySnapshot.forEach(doc => {
+                           userEmailForPasswordLogin = doc.data().email;
                         });
-                        isLoginState = true;
-                        mobileInput.disabled = true;
-                        passwordContainer.style.display = 'block';
-                        passwordInput.focus();
-                        submitBtn.textContent = 'Login';
+                        loginView.style.display = 'none';
+                        passwordView.style.display = 'block';
                     }
-                } catch (error) {
+                })
+                .catch(error => {
                     console.error("Error checking user:", error);
-                    errorMessage.textContent = 'An error occurred. Please try again.';
-                }
-            } else {
-                const password = passwordInput.value;
-                if (!password) {
-                    errorMessage.textContent = 'Password is required.';
-                    submitBtn.disabled = false;
-                    return;
-                }
+                    errorMessage.textContent = "An error occurred. Please try again.";
+                });
+        });
 
-                if (userData && userData.password === password) {
-                    // --- NEW: SAVE USER DATA TO LOCALSTORAGE ---
-                    localStorage.setItem('loggedInUserId', userData.id);
-                    localStorage.setItem('loggedInUserRole', userData.role);
-                    // Also store isAllowed status for student redirection logic
-                    localStorage.setItem('loggedInUserIsAllowed', userData.isAllowed);
-
-                    // Redirection logic (remains the same)
-                    switch (userData.role) {
-                        case 'Student':
-                            window.location.href = userData.isAllowed ? 'https://tv.apple.com' : 'https://nokia.com';
-                            break;
-                        case 'Teacher':
-                            window.location.href = 'https://apple.com';
-                            break;
-                        case 'Admin':
-                            window.location.href = '3.html';
-                            break;
-                        default:
-                            window.location.href = 'https://nokia.com';
+        function sendOtp(phoneNumber, isForLogin) {
+            const appVerifier = window.recaptchaVerifier;
+            auth.signInWithPhoneNumber(phoneNumber, appVerifier)
+                .then((confirmationResult) => {
+                    window.confirmationResult = confirmationResult;
+                    loginView.style.display = 'none';
+                    otpView.style.display = 'block';
+                    if (!isForLogin) {
+                        localStorage.setItem('signupPhoneNumber', phoneNumber);
                     }
+                }).catch((error) => {
+                    console.error("SMS not sent error", error);
+                    errorMessage.textContent = 'Failed to send OTP. Please try again. Make sure your domain is authorized in Firebase.';
+                    recaptchaVerifier.render().then(widgetId => {
+                        grecaptcha.reset(widgetId);
+                    });
+                });
+        }
+        
+        verifyOtpButton.addEventListener('click', () => {
+            const code = otpInput.value;
+            window.confirmationResult.confirm(code).then((result) => {
+                // This step is only for new users to verify their number before signup
+                const user = result.user;
+                console.log("Phone number verified.", user);
+                // Since this is a new user, they might not have an email/password yet.
+                // We'll redirect to signup page where they will create their full account.
+                // We've already stored their number in localStorage.
+                
+                // Immediately sign out the temporary phone auth user
+                auth.signOut().then(() => {
+                   window.location.href = '2.html';
+                });
 
-                } else {
-                    errorMessage.textContent = 'Incorrect password. Please try again.';
-                }
+            }).catch((error) => {
+                console.error("OTP verification failed", error);
+                errorMessage.textContent = 'Invalid OTP. Please try again.';
+            });
+        });
+
+        loginWithPasswordButton.addEventListener('click', () => {
+            const password = passwordInput.value;
+            if (!userEmailForPasswordLogin || !password) {
+                errorMessage.textContent = 'Something went wrong. Please restart.';
+                return;
             }
-            submitBtn.disabled = false;
+            auth.signInWithEmailAndPassword(userEmailForPasswordLogin, password)
+                .then((userCredential) => {
+                    console.log("Login successful!");
+                    window.location.href = '4.html'; // Redirect to user profile/dashboard
+                })
+                .catch((error) => {
+                    console.error("Password login error", error);
+                    errorMessage.textContent = "Incorrect password. Please try again.";
+                });
         });
 
     </script>
