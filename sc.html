@@ -35,6 +35,9 @@
             align-items: center;
             padding: 16px;
             background-color: var(--card-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         .header h1 {
             font-size: 20px;
@@ -49,6 +52,9 @@
             padding: 20px 16px;
             background-color: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 57px; /* Height of header */
+            z-index: 9;
         }
         .month-navigator {
             display: flex;
@@ -72,6 +78,7 @@
         .day {
             text-align: center;
             cursor: pointer;
+            padding: 4px;
         }
         .day .day-name {
             font-size: 14px;
@@ -88,6 +95,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+            transition: background-color 0.2s, color 0.2s;
         }
         .day.active .day-number {
             background-color: var(--text-primary);
@@ -102,6 +110,7 @@
             color: var(--text-secondary);
             margin-bottom: 8px;
             padding-left: 8px;
+            text-transform: uppercase;
         }
         .schedule-card {
             background-color: var(--card-bg);
@@ -118,7 +127,7 @@
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background-color: #eaf3ff;
+            background-color: #e7f3ff;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -126,7 +135,7 @@
         .schedule-card .icon-container svg {
             width: 24px;
             height: 24px;
-            color: #4c87e0;
+            color: #1877f2;
         }
         .schedule-card .details {
             flex-grow: 1;
@@ -140,6 +149,7 @@
             font-size: 16px;
             font-weight: 600;
             margin: 2px 0 6px;
+            color: var(--text-primary);
         }
         .schedule-card .status {
             font-size: 13px;
@@ -156,18 +166,27 @@
             padding: 20px;
             color: var(--text-secondary);
         }
+         #message-center p {
+            margin-top: 8px;
+        }
+         #message-center code {
+            background-color: #e9e9eb;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
         <header class="header">
-            <span class="back-arrow">&#x2190;</span>
+            <span class="back-arrow" onclick="history.back()">&#x2190;</span>
             <h1>Study Planner</h1>
         </header>
 
         <section class="date-section">
             <div class="month-navigator">
-                <div id="month-year-display">November, 2024</div>
+                <span id="month-year-display">November, 2024</span>
                 <div>
                     <span class="nav-arrow" id="prev-day">&lt;</span>
                     <span class="nav-arrow" id="next-day" style="margin-left: 16px;">&gt;</span>
@@ -203,7 +222,9 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.firestore();
 
         let currentDate = new Date();
@@ -218,8 +239,8 @@
             if (!studentClass) {
                 document.querySelector('.app-container').innerHTML = `
                     <div id="message-center">
-                        <h1>Error</h1>
-                        <p>No class specified. Please access this page with a class parameter in the URL.</p>
+                        <h1>Error: Class Not Specified</h1>
+                        <p>Please access this page with a class parameter in the URL.</p>
                         <p>Example: <code>.../2.html?class=10</code></p>
                     </div>
                 `;
@@ -232,8 +253,11 @@
             weekViewContainer.addEventListener('click', (e) => {
                 const dayElement = e.target.closest('.day');
                 if(dayElement && dayElement.dataset.date) {
-                    currentDate = new Date(dayElement.dataset.date);
-                    renderPage();
+                    // Prevent re-rendering if the same day is clicked
+                    if (currentDate.toISOString().split('T')[0] !== new Date(dayElement.dataset.date).toISOString().split('T')[0]) {
+                        currentDate = new Date(dayElement.dataset.date);
+                        renderPage();
+                    }
                 }
             });
 
@@ -251,20 +275,17 @@
         }
 
         function updateDateDisplay() {
-            // Update Month and Year
             monthYearDisplay.textContent = currentDate.toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric'
             });
 
-            // Update Week View
             weekViewContainer.innerHTML = '';
             const todayStr = currentDate.toISOString().split('T')[0];
             
-            // Start from Monday of the current week
             let tempDate = new Date(currentDate);
-            let dayOfWeek = tempDate.getDay(); // Sunday: 0, Monday: 1...
-            let diff = tempDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Sunday
+            let dayOfWeek = tempDate.getDay(); 
+            let diff = tempDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
             let monday = new Date(tempDate.setDate(diff));
 
             for (let i = 0; i < 7; i++) {
@@ -289,9 +310,9 @@
         
         async function fetchAndRenderSchedule() {
             scheduleListContainer.innerHTML = '';
-            messageCenter.textContent = 'Loading...';
+            messageCenter.textContent = 'Loading schedule...';
 
-            const selectedDateStr = currentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+            const selectedDateStr = currentDate.toISOString().split('T')[0];
 
             try {
                 const querySnapshot = await db.collection('schedules')
@@ -308,7 +329,7 @@
                 messageCenter.textContent = '';
                 const eventsByTime = groupEventsByTime(querySnapshot.docs);
                 
-                for(const time in eventsByTime){
+                Object.keys(eventsByTime).sort().forEach(time => {
                     const timeSlotDiv = document.createElement('div');
                     timeSlotDiv.className = 'time-slot';
                     
@@ -319,11 +340,14 @@
                     eventsByTime[time].forEach(data => {
                        scheduleListContainer.appendChild(createScheduleCard(data));
                     });
-                }
+                });
 
             } catch (error) {
                 console.error("Error fetching schedule: ", error);
-                messageCenter.textContent = 'Failed to load schedule. Please try again.';
+                messageCenter.innerHTML = `
+                    <strong>Failed to load schedule.</strong>
+                    <p>This is likely due to a missing database index. Please check the browser's developer console (F12) for a link to create the required index in Firebase.</p>
+                `;
             }
         }
         
@@ -370,7 +394,7 @@
             const h = parseInt(hours, 10);
             const suffix = h >= 12 ? 'PM' : 'AM';
             const hour12 = ((h + 11) % 12 + 1);
-            return `${String(hour12).padStart(2, '0')}:${minutes}${suffix}`;
+            return `${String(hour12)}:${minutes} ${suffix}`;
         }
     </script>
 </body>
