@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Planner</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-primary: #1c1e21;
+            --text-secondary: #65676b;
+            --accent-green: #31a24c;
+            --border-color: #e0e0e0;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background-color: var(--bg-color);
+            min-height: 100vh;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background-color: var(--card-bg);
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-left: 16px;
+        }
+        .header .back-arrow {
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .date-section {
+            padding: 20px 16px;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .month-navigator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        #month-year-display {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .nav-arrow {
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        .week-view {
+            display: flex;
+            justify-content: space-around;
+        }
+        .day {
+            text-align: center;
+            cursor: pointer;
+        }
+        .day .day-name {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .day .day-number {
+            font-size: 16px;
+            font-weight: 500;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .day.active .day-number {
+            background-color: var(--text-primary);
+            color: var(--card-bg);
+        }
+        .schedule-list {
+            padding: 16px;
+        }
+        .time-slot {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            padding-left: 8px;
+        }
+        .schedule-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .schedule-card .icon-container {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background-color: #eaf3ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .schedule-card .icon-container svg {
+            width: 24px;
+            height: 24px;
+            color: #4c87e0;
+        }
+        .schedule-card .details {
+            flex-grow: 1;
+        }
+        .schedule-card .subject {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .schedule-card .title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 2px 0 6px;
+        }
+        .schedule-card .status {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent-green);
+        }
+        .schedule-card .arrow-container {
+            font-size: 20px;
+            color: var(--text-secondary);
+        }
+        #message-center {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <span class="back-arrow">&#x2190;</span>
+            <h1>Study Planner</h1>
+        </header>
+
+        <section class="date-section">
+            <div class="month-navigator">
+                <div id="month-year-display">November, 2024</div>
+                <div>
+                    <span class="nav-arrow" id="prev-day">&lt;</span>
+                    <span class="nav-arrow" id="next-day" style="margin-left: 16px;">&gt;</span>
+                </div>
+            </div>
+            <div class="week-view" id="week-view">
+                <!-- Days will be dynamically inserted here -->
+            </div>
+        </section>
+
+        <main class="schedule-list" id="schedule-list">
+            <!-- Schedule cards will be dynamically inserted here -->
+        </main>
+        
+        <div id="message-center"></div>
+
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDCnGQGoUHeV2o90J9asNPVwQxZbQueTU",
+            authDomain: "xperts-shadule.firebaseapp.com",
+            projectId: "xperts-shadule",
+            storageBucket: "xperts-shadule.appspot.com",
+            messagingSenderId: "305083972954",
+            appId: "1:305083972954:web:964729b6b49fdaa2a4c763",
+            measurementId: "G-L70G36H5B7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let currentDate = new Date();
+        const studentClass = new URLSearchParams(window.location.search).get('class');
+
+        const monthYearDisplay = document.getElementById('month-year-display');
+        const weekViewContainer = document.getElementById('week-view');
+        const scheduleListContainer = document.getElementById('schedule-list');
+        const messageCenter = document.getElementById('message-center');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!studentClass) {
+                document.querySelector('.app-container').innerHTML = `
+                    <div id="message-center">
+                        <h1>Error</h1>
+                        <p>No class specified. Please access this page with a class parameter in the URL.</p>
+                        <p>Example: <code>.../2.html?class=10</code></p>
+                    </div>
+                `;
+                return;
+            }
+            
+            document.getElementById('prev-day').addEventListener('click', () => changeDay(-1));
+            document.getElementById('next-day').addEventListener('click', () => changeDay(1));
+            
+            weekViewContainer.addEventListener('click', (e) => {
+                const dayElement = e.target.closest('.day');
+                if(dayElement && dayElement.dataset.date) {
+                    currentDate = new Date(dayElement.dataset.date);
+                    renderPage();
+                }
+            });
+
+            renderPage();
+        });
+
+        function changeDay(offset) {
+            currentDate.setDate(currentDate.getDate() + offset);
+            renderPage();
+        }
+
+        async function renderPage() {
+            updateDateDisplay();
+            await fetchAndRenderSchedule();
+        }
+
+        function updateDateDisplay() {
+            // Update Month and Year
+            monthYearDisplay.textContent = currentDate.toLocaleDateString('en-US', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            // Update Week View
+            weekViewContainer.innerHTML = '';
+            const todayStr = currentDate.toISOString().split('T')[0];
+            
+            // Start from Monday of the current week
+            let tempDate = new Date(currentDate);
+            let dayOfWeek = tempDate.getDay(); // Sunday: 0, Monday: 1...
+            let diff = tempDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Sunday
+            let monday = new Date(tempDate.setDate(diff));
+
+            for (let i = 0; i < 7; i++) {
+                let day = new Date(monday);
+                day.setDate(monday.getDate() + i);
+                
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                const dayDateStr = day.toISOString().split('T')[0];
+                if(dayDateStr === todayStr) {
+                    dayDiv.classList.add('active');
+                }
+                dayDiv.dataset.date = day.toISOString();
+
+                dayDiv.innerHTML = `
+                    <div class="day-name">${day.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0)}</div>
+                    <div class="day-number">${day.getDate()}</div>
+                `;
+                weekViewContainer.appendChild(dayDiv);
+            }
+        }
+        
+        async function fetchAndRenderSchedule() {
+            scheduleListContainer.innerHTML = '';
+            messageCenter.textContent = 'Loading...';
+
+            const selectedDateStr = currentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+
+            try {
+                const querySnapshot = await db.collection('schedules')
+                    .where('class', '==', studentClass)
+                    .where('date', '==', selectedDateStr)
+                    .orderBy('startTime')
+                    .get();
+                
+                if (querySnapshot.empty) {
+                    messageCenter.textContent = 'No classes scheduled for this day.';
+                    return;
+                }
+                
+                messageCenter.textContent = '';
+                const eventsByTime = groupEventsByTime(querySnapshot.docs);
+                
+                for(const time in eventsByTime){
+                    const timeSlotDiv = document.createElement('div');
+                    timeSlotDiv.className = 'time-slot';
+                    
+                    const [startTime, endTime] = time.split('-');
+                    timeSlotDiv.textContent = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+                    scheduleListContainer.appendChild(timeSlotDiv);
+
+                    eventsByTime[time].forEach(data => {
+                       scheduleListContainer.appendChild(createScheduleCard(data));
+                    });
+                }
+
+            } catch (error) {
+                console.error("Error fetching schedule: ", error);
+                messageCenter.textContent = 'Failed to load schedule. Please try again.';
+            }
+        }
+        
+        function groupEventsByTime(docs) {
+             const grouped = {};
+             docs.forEach(doc => {
+                 const data = doc.data();
+                 const key = `${data.startTime}-${data.endTime}`;
+                 if(!grouped[key]){
+                     grouped[key] = [];
+                 }
+                 grouped[key].push(data);
+             });
+             return grouped;
+        }
+
+        function createScheduleCard(data) {
+            const card = document.createElement('div');
+            card.className = 'schedule-card';
+
+            const now = new Date();
+            const eventEndTime = new Date(`${data.date}T${data.endTime}`);
+            const isCompleted = now > eventEndTime;
+
+            card.innerHTML = `
+                <div class="icon-container">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" />
+                    </svg>
+                </div>
+                <div class="details">
+                    <div class="subject">${data.subject} ${data.type}</div>
+                    <div class="title">${data.title}</div>
+                    <div class="status">${isCompleted ? 'Class Completed' : 'Upcoming'}</div>
+                </div>
+                <div class="arrow-container">&gt;</div>
+            `;
+            return card;
+        }
+        
+        function formatTime(time24) {
+            if (!time24) return '';
+            const [hours, minutes] = time24.split(':');
+            const h = parseInt(hours, 10);
+            const suffix = h >= 12 ? 'PM' : 'AM';
+            const hour12 = ((h + 11) % 12 + 1);
+            return `${String(hour12).padStart(2, '0')}:${minutes}${suffix}`;
+        }
+    </script>
+</body>
+</html>
