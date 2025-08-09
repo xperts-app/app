@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Firebase Class Chat</title>
+    <style>
+        /* CSS - Merged for a single file experience */
+        :root {
+            --primary-bg: #f0f2f5;
+            --secondary-bg: #ffffff;
+            --primary-text: #050505;
+            --secondary-text: #65676b;
+            --accent-color: #0084ff;
+            --sent-bg: #d9fdd3;
+            --received-bg: #ffffff;
+            --error-color: #e74c3c;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--primary-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--primary-text);
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 370px;
+            height: 100vh;
+            max-height: 800px;
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Login Screen --- */
+        #login-container {
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+
+        #login-container h1 {
+            text-align: center;
+            color: var(--accent-color);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--secondary-text);
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        #login-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        #login-btn:hover {
+            background-color: #0073e6;
+        }
+        
+        #login-btn:disabled {
+            background-color: #99cfff;
+            cursor: not-allowed;
+        }
+
+        #error-message {
+            color: var(--error-color);
+            text-align: center;
+            margin-top: 15px;
+            height: 20px;
+            font-size: 14px;
+        }
+
+        /* --- Chat Screen --- */
+        #chat-container {
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: var(--accent-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        
+        #chat-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        #logout-btn {
+            background: none;
+            border: 1px solid white;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #messages-container {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: var(--primary-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 8px 12px;
+            border-radius: 18px;
+            margin-bottom: 10px;
+            word-wrap: break-word;
+        }
+
+        .message .sender {
+            font-size: 12px;
+            font-weight: bold;
+            color: #005cbf; /* Darker accent for name */
+            margin-bottom: 4px;
+        }
+
+        .message.sent {
+            background-color: var(--sent-bg);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received {
+            background-color: var(--received-bg);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+        }
+
+        #message-form {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--secondary-bg);
+            flex-shrink: 0;
+        }
+
+        #message-input {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 10px 15px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        #send-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- Login View -->
+        <div id="login-container">
+            <h1>Chat Login</h1>
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="mobile">Mobile Number</label>
+                    <input type="tel" id="mobile" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" id="login-btn">Login</button>
+            </form>
+            <p id="error-message"></p>
+        </div>
+
+        <!-- Chat View -->
+        <div id="chat-container">
+            <div class="chat-header">
+                <h1 id="chat-title">Chat</h1>
+                <button id="logout-btn">Logout</button>
+            </div>
+            <div id="messages-container">
+                <!-- Messages will be dynamically loaded here -->
+            </div>
+            <form id="message-form">
+                <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+                <button type="submit" id="send-btn">&#10148;</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // JavaScript - Merged for a single file experience
+
+        // --- 1. FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
+            authDomain: "xperts-data.firebaseapp.com",
+            projectId: "xperts-data",
+            storageBucket: "xperts-data.firebasestorage.app",
+            messagingSenderId: "934675149024",
+            appId: "1:934675149024:web:23486a5f38f65f103ce085",
+            measurementId: "G-6TS06NTDZQ"
+        };
+
+        // --- 2. INITIALIZE FIREBASE & FIRESTORE ---
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- 3. GLOBAL VARIABLES & ELEMENT REFERENCES ---
+        let currentUser = null;
+        let currentClass = "General"; // Default chat room
+        let unsubscribeMessages = null; // To stop listening for messages on logout
+
+        const loginContainer = document.getElementById('login-container');
+        const chatContainer = document.getElementById('chat-container');
+        const loginForm = document.getElementById('login-form');
+        const mobileInput = document.getElementById('mobile');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const errorMessage = document.getElementById('error-message');
+        
+        const chatTitle = document.getElementById('chat-title');
+        const logoutBtn = document.getElementById('logout-btn');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        
+        // --- 4. GET CLASS FROM URL ---
+        function getChatClassFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const classFromUrl = urlParams.get('class');
+            if (classFromUrl) {
+                currentClass = classFromUrl; // e.g., "12 JEE", "CBSE"
+            }
+        }
+        
+        getChatClassFromUrl(); // Run this on page load
+
+        // --- 5. LOGIN LOGIC ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const mobile = mobileInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!mobile || !password) {
+                showError("Please enter mobile number and password.");
+                return;
+            }
+
+            setLoginLoading(true);
+
+            try {
+                const usersRef = db.collection('users');
+                const query = usersRef.where('mobileNumber', '==', mobile);
+                const querySnapshot = await query.get();
+
+                if (querySnapshot.empty) {
+                    showError("Invalid mobile number or password.");
+                    setLoginLoading(false);
+                    return;
+                }
+
+                const userDoc = querySnapshot.docs[0];
+                const userData = userDoc.data();
+
+                if (userData.password === password && userData.isAllowed === true) {
+                    currentUser = {
+                        id: userDoc.id,
+                        fullName: userData.fullName,
+                        mobileNumber: userData.mobileNumber
+                    };
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    showChatView();
+                } else if (userData.password === password && userData.isAllowed === false) {
+                     showError("Your account is not allowed to log in.");
+                } else {
+                    showError("Invalid mobile number or password.");
+                }
+
+            } catch (error) {
+                console.error("Error during login: ", error);
+                showError("An error occurred. Please try again.");
+            } finally {
+                setLoginLoading(false);
+            }
+        });
+
+        // --- 6. CHAT LOGIC ---
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageText = messageInput.value.trim();
+
+            if (messageText === '' || !currentUser) return;
+
+            try {
+                // Add a new message to the 'messages' collection with the class
+                await db.collection('messages').add({
+                    text: messageText,
+                    senderName: currentUser.fullName,
+                    senderMobile: currentUser.mobileNumber,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    class: currentClass // <-- ADDED CLASS FIELD
+                });
+
+                messageInput.value = '';
+                scrollToBottom();
+            } catch (error) {
+                console.error("Error sending message: ", error);
+                alert("Could not send message. Please try again.");
+            }
+        });
+
+        // --- 7. REAL-TIME MESSAGE LISTENER (NOW FILTERED) ---
+        function loadMessages() {
+            if (unsubscribeMessages) {
+                unsubscribeMessages();
+            }
+
+            // MODIFIED QUERY: Filter messages by the current class
+            const messagesRef = db.collection('messages')
+                                  .where('class', '==', currentClass)
+                                  .orderBy('createdAt', 'asc')
+                                  .limit(50);
+
+            unsubscribeMessages = messagesRef.onSnapshot(querySnapshot => {
+                messagesContainer.innerHTML = '';
+                querySnapshot.forEach(doc => {
+                    const message = doc.data();
+                    const messageEl = document.createElement('div');
+                    messageEl.classList.add('message');
+
+                    if (message.senderMobile === currentUser.mobileNumber) {
+                        messageEl.classList.add('sent');
+                        messageEl.innerHTML = `<div class="text">${message.text}</div>`;
+                    } else {
+                        messageEl.classList.add('received');
+                        messageEl.innerHTML = `
+                            <div class="sender">${message.senderName}</div>
+                            <div class="text">${message.text}</div>
+                        `;
+                    }
+                    messagesContainer.appendChild(messageEl);
+                });
+                scrollToBottom();
+            }, error => {
+                console.error("Error fetching messages: ", error);
+                // This is where you'll see the index creation error/link
+                messagesContainer.innerHTML = `<p style="color:red; text-align:center; padding:20px;">Error loading messages. You might need to create a Firestore index. Check the browser console (F12) for a link.</p>`;
+            });
+        }
+        
+        // --- 8. LOGOUT LOGIC ---
+        logoutBtn.addEventListener('click', () => {
+            if (unsubscribeMessages) {
+                unsubscribeMessages();
+                unsubscribeMessages = null;
+            }
+            
+            currentUser = null;
+            sessionStorage.removeItem('currentUser');
+            showLoginView();
+        });
+
+        // --- 9. UI HELPER FUNCTIONS ---
+        function showLoginView() {
+            loginContainer.style.display = 'flex';
+            chatContainer.style.display = 'none';
+            passwordInput.value = '';
+        }
+        
+        function showChatView() {
+            chatTitle.textContent = `${currentClass} Chat`; // Update header with class name
+            loginContainer.style.display = 'none';
+            chatContainer.style.display = 'flex';
+            loadMessages();
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+        }
+        
+        function setLoginLoading(isLoading) {
+            loginBtn.disabled = isLoading;
+            loginBtn.textContent = isLoading ? 'Logging in...' : 'Login';
+        }
+
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // --- 10. SESSION CHECK ON PAGE LOAD ---
+        function checkSession() {
+            const savedUser = sessionStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showChatView();
+            } else {
+                showLoginView();
+            }
+        }
+        
+        // Start the app
+        checkSession();
+
+    </script>
+</body>
+</html>
