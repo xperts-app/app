@@ -271,8 +271,8 @@
 
         // --- 3. GLOBAL VARIABLES & ELEMENT REFERENCES ---
         let currentUser = null;
-        let currentClass = "General"; // Default chat room
-        let unsubscribeMessages = null; // To stop listening for messages on logout
+        let currentClass = null; // Will be set after login
+        let unsubscribeMessages = null;
 
         const loginContainer = document.getElementById('login-container');
         const chatContainer = document.getElementById('chat-container');
@@ -288,18 +288,7 @@
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
         
-        // --- 4. GET CLASS FROM URL ---
-        function getChatClassFromUrl() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const classFromUrl = urlParams.get('class');
-            if (classFromUrl) {
-                currentClass = classFromUrl; // e.g., "12 JEE", "CBSE"
-            }
-        }
-        
-        getChatClassFromUrl(); // Run this on page load
-
-        // --- 5. LOGIN LOGIC ---
+        // --- 4. LOGIN LOGIC ---
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const mobile = mobileInput.value.trim();
@@ -327,12 +316,19 @@
                 const userData = userDoc.data();
 
                 if (userData.password === password && userData.isAllowed === true) {
+                    // *** NEW LOGIC: GET CLASS FROM USER DATA ***
+                    currentClass = userData.class || "General"; // Default to "General" if no class is set
+
                     currentUser = {
                         id: userDoc.id,
                         fullName: userData.fullName,
-                        mobileNumber: userData.mobileNumber
+                        mobileNumber: userData.mobileNumber,
+                        class: currentClass // Store the class in the user object
                     };
+                    
+                    // Persist user session with their class
                     sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
                     showChatView();
                 } else if (userData.password === password && userData.isAllowed === false) {
                      showError("Your account is not allowed to log in.");
@@ -348,21 +344,21 @@
             }
         });
 
-        // --- 6. CHAT LOGIC ---
+        // --- 5. CHAT LOGIC ---
         messageForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const messageText = messageInput.value.trim();
 
-            if (messageText === '' || !currentUser) return;
+            if (messageText === '' || !currentUser || !currentClass) return;
 
             try {
-                // Add a new message to the 'messages' collection with the class
+                // Add message with the user's assigned class
                 await db.collection('messages').add({
                     text: messageText,
                     senderName: currentUser.fullName,
                     senderMobile: currentUser.mobileNumber,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    class: currentClass // <-- ADDED CLASS FIELD
+                    class: currentClass // The class is determined by the logged-in user
                 });
 
                 messageInput.value = '';
@@ -373,13 +369,13 @@
             }
         });
 
-        // --- 7. REAL-TIME MESSAGE LISTENER (NOW FILTERED) ---
+        // --- 6. REAL-TIME MESSAGE LISTENER ---
         function loadMessages() {
             if (unsubscribeMessages) {
                 unsubscribeMessages();
             }
 
-            // MODIFIED QUERY: Filter messages by the current class
+            // This query is now filtered by the class of the logged-in user
             const messagesRef = db.collection('messages')
                                   .where('class', '==', currentClass)
                                   .orderBy('createdAt', 'asc')
@@ -407,12 +403,11 @@
                 scrollToBottom();
             }, error => {
                 console.error("Error fetching messages: ", error);
-                // This is where you'll see the index creation error/link
-                messagesContainer.innerHTML = `<p style="color:red; text-align:center; padding:20px;">Error loading messages. You might need to create a Firestore index. Check the browser console (F12) for a link.</p>`;
+                messagesContainer.innerHTML = `<p style="color:red; text-align:center; padding:20px;">Error loading messages. A Firestore index is likely required. Check browser console (F12) for a link to create it.</p>`;
             });
         }
         
-        // --- 8. LOGOUT LOGIC ---
+        // --- 7. LOGOUT LOGIC ---
         logoutBtn.addEventListener('click', () => {
             if (unsubscribeMessages) {
                 unsubscribeMessages();
@@ -420,11 +415,12 @@
             }
             
             currentUser = null;
+            currentClass = null; // Clear the class on logout
             sessionStorage.removeItem('currentUser');
             showLoginView();
         });
 
-        // --- 9. UI HELPER FUNCTIONS ---
+        // --- 8. UI HELPER FUNCTIONS ---
         function showLoginView() {
             loginContainer.style.display = 'flex';
             chatContainer.style.display = 'none';
@@ -432,7 +428,7 @@
         }
         
         function showChatView() {
-            chatTitle.textContent = `${currentClass} Chat`; // Update header with class name
+            chatTitle.textContent = `${currentClass} Chat`;
             loginContainer.style.display = 'none';
             chatContainer.style.display = 'flex';
             loadMessages();
@@ -451,12 +447,20 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         
-        // --- 10. SESSION CHECK ON PAGE LOAD ---
+        // --- 9. SESSION CHECK ON PAGE LOAD ---
         function checkSession() {
-            const savedUser = sessionStorage.getItem('currentUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                showChatView();
+            const savedUserJson = sessionStorage.getItem('currentUser');
+            if (savedUserJson) {
+                const savedUser = JSON.parse(savedUserJson);
+                // *** NEW LOGIC: Restore user and their class from session ***
+                if (savedUser.class) {
+                    currentUser = savedUser;
+                    currentClass = savedUser.class;
+                    showChatView();
+                } else {
+                    // If session data is old or malformed, force a logout
+                    logoutBtn.click();
+                }
             } else {
                 showLoginView();
             }
