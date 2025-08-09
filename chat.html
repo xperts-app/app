@@ -3,277 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Firebase Class Chat</title>
+    <title>Firebase Chat & Polls</title>
     <style>
-        /* CSS - Merged for a single file experience */
         :root {
-            --primary-bg: #f0f2f5;
-            --secondary-bg: #ffffff;
-            --primary-text: #050505;
-            --secondary-text: #65676b;
-            --accent-color: #0084ff;
-            --sent-bg: #d9fdd3;
-            --received-bg: #ffffff;
-            --error-color: #e74c3c;
-            --border-color: #ddd;
+            --primary-bg: #f0f2f5; --secondary-bg: #ffffff; --primary-text: #050505;
+            --secondary-text: #65676b; --accent-color: #0084ff; --sent-bg: #d9fdd3;
+            --received-bg: #ffffff; --error-color: #e74c3c; --border-color: #ddd;
+            --sender-name-color: #005cbf;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--primary-bg);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: var(--primary-text);
+            margin: 0; padding: 0; background-color: var(--primary-bg); display: flex;
+            justify-content: center; align-items: center; height: 100vh;
         }
-
         #app-container {
-            width: 100%;
-            max-width: 370px;
-            height: 100vh;
-            max-height: 800px;
-            background-color: var(--secondary-bg);
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            width: 100%; max-width: 370px; height: 100vh; max-height: 800px;
+            background-color: var(--secondary-bg); border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); display: flex;
+            flex-direction: column; overflow: hidden; position: relative;
         }
-
-        /* --- Login Screen --- */
-        #login-container {
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            height: 100%;
-        }
-
-        #login-container h1 {
-            text-align: center;
-            color: var(--accent-color);
-            margin-bottom: 30px;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--secondary-text);
-            font-size: 14px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-
-        #login-btn {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: background-color 0.3s;
-        }
-
-        #login-btn:hover {
-            background-color: #0073e6;
-        }
+        #login-container { padding: 40px 20px; display: flex; flex-direction: column; justify-content: center; height: 100%; }
+        #login-container h1 { text-align: center; color: var(--accent-color); margin-bottom: 30px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; color: var(--secondary-text); font-size: 14px; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 16px; box-sizing: border-box; }
+        #login-btn { width: 100%; padding: 12px; background-color: var(--accent-color); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        #login-btn:disabled { background-color: #99cfff; cursor: not-allowed; }
+        #error-message { color: var(--error-color); text-align: center; margin-top: 15px; height: 20px; font-size: 14px; }
+        #chat-container { display: none; flex-direction: column; height: 100%; }
+        .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background-color: var(--accent-color); color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; }
+        #chat-title { font-weight: bold; font-size: 18px; margin: 0; }
+        #logout-btn { background: none; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        #messages-container { flex-grow: 1; padding: 15px; overflow-y: auto; background-color: var(--primary-bg); display: flex; flex-direction: column; }
         
-        #login-btn:disabled {
-            background-color: #99cfff;
-            cursor: not-allowed;
-        }
+        .message-group { display: flex; flex-direction: column; margin-bottom: 10px; max-width: 85%; }
+        .message-group.sent { align-self: flex-end; }
+        .message-group.received { align-self: flex-start; }
+        .message-sender-name { font-size: 12px; font-weight: bold; color: var(--sender-name-color); margin-bottom: 4px; padding: 0 8px; }
+        .message { padding: 8px 12px; border-radius: 18px; word-wrap: break-word; user-select: none; position: relative; }
+        .message .sender { font-size: 12px; font-weight: bold; color: var(--sender-name-color); margin-bottom: 4px; }
+        .message-group.sent .message { background-color: var(--sent-bg); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .message-group.received .message { background-color: var(--received-bg); align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
 
-        #error-message {
-            color: var(--error-color);
-            text-align: center;
-            margin-top: 15px;
-            height: 20px;
-            font-size: 14px;
-        }
+        #message-form { display: flex; padding: 10px; border-top: 1px solid var(--border-color); background-color: var(--secondary-bg); flex-shrink: 0; align-items: center; }
+        #message-input { flex-grow: 1; border: 1px solid var(--border-color); border-radius: 18px; padding: 10px 15px; font-size: 16px; margin: 0 10px; }
+        #send-btn, #poll-btn { background-color: var(--accent-color); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+        #send-btn svg, #poll-btn svg { width: 22px; height: 22px; fill: white; }
 
-        /* --- Chat Screen --- */
-        #chat-container {
-            display: none; /* Hidden by default */
-            flex-direction: column;
-            height: 100%;
-        }
+        .poll-question { font-weight: bold; margin-bottom: 10px; }
+        .poll-options-wrapper { display: flex; flex-direction: column; gap: 5px; }
+        .poll-option { background-color: #fff; border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; cursor: pointer; position: relative; overflow: hidden; transition: background-color 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .poll-option:hover { background-color: #f1f1f1; }
+        .poll-option.voted-by-user { border-color: var(--accent-color); }
+        .poll-option-bar { position: absolute; left: 0; top: 0; height: 100%; background-color: var(--accent-color); opacity: 0.2; z-index: 1; }
+        .poll-option-text, .poll-option-votes { position: relative; z-index: 2; }
+        .poll-option-votes { font-size: 12px; color: var(--primary-text); }
+        .total-votes { font-size: 11px; color: var(--secondary-text); margin-top: 8px; text-align: right; }
 
-        .chat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
-            background-color: var(--accent-color);
-            color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            flex-shrink: 0;
-        }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 100; }
+        .modal { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 340px; }
+        .modal h2 { margin-top: 0; }
+        .modal input { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        #poll-options-container .poll-option-input { display: flex; align-items: center; }
+        #poll-options-container input { flex-grow: 1; }
+        #poll-options-container button { margin-left: 5px; flex-shrink: 0; background-color: #eee; border: 1px solid #ccc; cursor: pointer; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         
-        #chat-title {
-            font-weight: bold;
-            font-size: 18px;
-            margin: 0;
-        }
-
-        #logout-btn {
-            background: none;
-            border: 1px solid white;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        #messages-container {
-            flex-grow: 1;
-            padding: 15px;
-            overflow-y: auto;
-            background-color: var(--primary-bg);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .message {
-            max-width: 75%;
-            padding: 8px 12px;
-            border-radius: 18px;
-            margin-bottom: 10px;
-            word-wrap: break-word;
-        }
-
-        .message .sender {
-            font-size: 12px;
-            font-weight: bold;
-            color: #005cbf; /* Darker accent for name */
-            margin-bottom: 4px;
-        }
-
-        .message.sent {
-            background-color: var(--sent-bg);
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.received {
-            background-color: var(--received-bg);
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.05);
-        }
-
-        #message-form {
-            display: flex;
-            padding: 10px;
-            border-top: 1px solid var(--border-color);
-            background-color: var(--secondary-bg);
-            flex-shrink: 0;
-        }
-
-        #message-input {
-            flex-grow: 1;
-            border: 1px solid var(--border-color);
-            border-radius: 18px;
-            padding: 10px 15px;
-            font-size: 16px;
-            margin-right: 10px;
-        }
-
-        #send-btn {
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        #menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 199; display: none; }
+        #message-menu { position: absolute; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 200; display: none; padding: 5px 0; min-width: 180px; }
+        .menu-option { padding: 10px 20px; cursor: pointer; }
+        .menu-option:hover { background: #f1f1f1; }
+        .menu-option.danger { color: var(--error-color); }
     </style>
 </head>
 <body>
-
     <div id="app-container">
-        <!-- Login View -->
-        <div id="login-container">
-            <h1>Chat Login</h1>
-            <form id="login-form">
-                <div class="input-group">
-                    <label for="mobile">Mobile Number</label>
-                    <input type="tel" id="mobile" required>
-                </div>
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required>
-                </div>
-                <button type="submit" id="login-btn">Login</button>
-            </form>
-            <p id="error-message"></p>
-        </div>
-
-        <!-- Chat View -->
+        <div id="login-container"></div>
         <div id="chat-container">
-            <div class="chat-header">
-                <h1 id="chat-title">Chat</h1>
-                <button id="logout-btn">Logout</button>
-            </div>
-            <div id="messages-container">
-                <!-- Messages will be dynamically loaded here -->
-            </div>
+            <div class="chat-header"><h1 id="chat-title">Chat</h1><button id="logout-btn">Logout</button></div>
+            <div id="messages-container"></div>
             <form id="message-form">
+                <button type="button" id="poll-btn" title="Create a poll">
+                    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
+                </button>
                 <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
-                <button type="submit" id="send-btn">&#10148;</button>
+                <button type="submit" id="send-btn" title="Send message">
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                </button>
             </form>
+        </div>
+        <div id="poll-modal" class="modal-overlay"></div>
+        <div id="menu-overlay"></div>
+        <div id="message-menu">
+             <div id="delete-me-btn" class="menu-option">Delete for Me</div>
+             <div id="delete-everyone-btn" class="menu-option danger">Delete for Everyone</div>
         </div>
     </div>
-
-    <!-- Firebase SDK Scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
     <script>
-        // JavaScript - Merged for a single file experience
-
-        // --- 1. FIREBASE CONFIGURATION ---
         const firebaseConfig = {
-            apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
-            authDomain: "xperts-data.firebaseapp.com",
-            projectId: "xperts-data",
-            storageBucket: "xperts-data.firebasestorage.app",
-            messagingSenderId: "934675149024",
-            appId: "1:934675149024:web:23486a5f38f65f103ce085",
-            measurementId: "G-6TS06NTDZQ"
+            apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk", authDomain: "xperts-data.firebaseapp.com",
+            projectId: "xperts-data", storageBucket: "xperts-data.firebasestorage.app",
+            messagingSenderId: "934675149024", appId: "1:934675149024:web:23486a5f38f65f103ce085",
         };
-
-        // --- 2. INITIALIZE FIREBASE & FIRESTORE ---
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- 3. GLOBAL VARIABLES & ELEMENT REFERENCES ---
-        let currentUser = null;
-        let currentClass = null; // Will be set after login
-        let unsubscribeMessages = null;
-
+        document.getElementById('login-container').innerHTML = `<h1>Chat Login</h1><form id="login-form"><div class="input-group"><label for="mobile">Mobile Number</label><input type="tel" id="mobile" required></div><div class="input-group"><label for="password">Password</label><input type="password" id="password" required></div><button type="submit" id="login-btn">Login</button></form><p id="error-message"></p>`;
+        document.getElementById('poll-modal').innerHTML = `<div class="modal"><h2>Create New Poll</h2><input type="text" id="poll-question" placeholder="Poll Question" required><div id="poll-options-container"><div class="poll-option-input"><input type="text" placeholder="Option 1" required></div><div class="poll-option-input"><input type="text" placeholder="Option 2" required></div></div><button type="button" id="add-option-btn" style="margin-top: 5px;">Add Option</button><div class="modal-buttons"><button type="button" id="cancel-poll-btn">Cancel</button><button type="button" id="create-poll-btn" style="background:var(--accent-color); color:white;">Create</button></div></div>`;
+        
+        let currentUser = null, currentClass = null, unsubscribeMessages = null;
+        let longPressTimer;
+        let selectedMessage = { id: null, element: null, data: null };
+        
         const loginContainer = document.getElementById('login-container');
         const chatContainer = document.getElementById('chat-container');
         const loginForm = document.getElementById('login-form');
@@ -281,194 +124,198 @@
         const passwordInput = document.getElementById('password');
         const loginBtn = document.getElementById('login-btn');
         const errorMessage = document.getElementById('error-message');
-        
         const chatTitle = document.getElementById('chat-title');
         const logoutBtn = document.getElementById('logout-btn');
         const messagesContainer = document.getElementById('messages-container');
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
-        
-        // --- 4. LOGIN LOGIC ---
+        const pollBtn = document.getElementById('poll-btn');
+        const pollModal = document.getElementById('poll-modal');
+        const pollQuestionInput = document.getElementById('poll-question');
+        const pollOptionsContainer = document.getElementById('poll-options-container');
+        const addOptionBtn = document.getElementById('add-option-btn');
+        const cancelPollBtn = document.getElementById('cancel-poll-btn');
+        const createPollBtn = document.getElementById('create-poll-btn');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const messageMenu = document.getElementById('message-menu');
+        const deleteMeBtn = document.getElementById('delete-me-btn');
+        const deleteEveryoneBtn = document.getElementById('delete-everyone-btn');
+
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const mobile = mobileInput.value.trim();
             const password = passwordInput.value.trim();
-
-            if (!mobile || !password) {
-                showError("Please enter mobile number and password.");
-                return;
-            }
-
+            if (!mobile || !password) { showError("Please fill all fields."); return; }
             setLoginLoading(true);
-
             try {
-                const usersRef = db.collection('users');
-                const query = usersRef.where('mobileNumber', '==', mobile);
-                const querySnapshot = await query.get();
-
-                if (querySnapshot.empty) {
-                    showError("Invalid mobile number or password.");
-                    setLoginLoading(false);
-                    return;
-                }
-
+                const querySnapshot = await db.collection('users').where('mobileNumber', '==', mobile).get();
+                if (querySnapshot.empty) { throw new Error("Invalid details"); }
                 const userDoc = querySnapshot.docs[0];
                 const userData = userDoc.data();
-
-                if (userData.password === password && userData.isAllowed === true) {
-                    // *** NEW LOGIC: GET CLASS FROM USER DATA ***
-                    currentClass = userData.class || "General"; // Default to "General" if no class is set
-
-                    currentUser = {
-                        id: userDoc.id,
-                        fullName: userData.fullName,
-                        mobileNumber: userData.mobileNumber,
-                        class: currentClass // Store the class in the user object
-                    };
-                    
-                    // Persist user session with their class
+                if (userData.password === password && userData.isAllowed) {
+                    currentClass = userData.class || "General";
+                    currentUser = { id: userDoc.id, fullName: userData.fullName, mobileNumber: userData.mobileNumber, class: currentClass };
                     sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    
                     showChatView();
-                } else if (userData.password === password && userData.isAllowed === false) {
-                     showError("Your account is not allowed to log in.");
-                } else {
-                    showError("Invalid mobile number or password.");
-                }
-
-            } catch (error) {
-                console.error("Error during login: ", error);
-                showError("An error occurred. Please try again.");
-            } finally {
-                setLoginLoading(false);
-            }
+                } else if (!userData.isAllowed) { throw new Error("Account not permitted."); }
+                else { throw new Error("Invalid details"); }
+            } catch (error) { showError(error.message); } 
+            finally { setLoginLoading(false); }
         });
 
-        // --- 5. CHAT LOGIC ---
-        messageForm.addEventListener('submit', async (e) => {
+        messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const messageText = messageInput.value.trim();
-
-            if (messageText === '' || !currentUser || !currentClass) return;
-
-            try {
-                // Add message with the user's assigned class
-                await db.collection('messages').add({
-                    text: messageText,
-                    senderName: currentUser.fullName,
-                    senderMobile: currentUser.mobileNumber,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    class: currentClass // The class is determined by the logged-in user
-                });
-
-                messageInput.value = '';
-                scrollToBottom();
-            } catch (error) {
-                console.error("Error sending message: ", error);
-                alert("Could not send message. Please try again.");
-            }
+            if (messageText === '' || !currentUser) return;
+            sendMessage({ type: 'text', text: messageText });
+            messageInput.value = '';
         });
 
-        // --- 6. REAL-TIME MESSAGE LISTENER ---
+        async function sendMessage(messageData) {
+            if (!currentUser || !currentClass) return;
+            try {
+                await db.collection('messages').add({
+                    ...messageData,
+                    senderName: currentUser.fullName,
+                    senderMobile: currentUser.mobileNumber,
+                    class: currentClass,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) { console.error("Error sending message:", error); }
+        }
+
         function loadMessages() {
-            if (unsubscribeMessages) {
-                unsubscribeMessages();
-            }
-
-            // This query is now filtered by the class of the logged-in user
-            const messagesRef = db.collection('messages')
-                                  .where('class', '==', currentClass)
-                                  .orderBy('createdAt', 'asc')
-                                  .limit(50);
-
-            unsubscribeMessages = messagesRef.onSnapshot(querySnapshot => {
-                messagesContainer.innerHTML = '';
-                querySnapshot.forEach(doc => {
-                    const message = doc.data();
-                    const messageEl = document.createElement('div');
-                    messageEl.classList.add('message');
-
-                    if (message.senderMobile === currentUser.mobileNumber) {
-                        messageEl.classList.add('sent');
-                        messageEl.innerHTML = `<div class="text">${message.text}</div>`;
-                    } else {
-                        messageEl.classList.add('received');
-                        messageEl.innerHTML = `
-                            <div class="sender">${message.senderName}</div>
-                            <div class="text">${message.text}</div>
-                        `;
+            if (unsubscribeMessages) unsubscribeMessages();
+            const messagesRef = db.collection('messages').where('class', '==', currentClass).orderBy('createdAt', 'asc');
+            unsubscribeMessages = messagesRef.onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    const doc = change.doc, data = doc.data();
+                    const el = document.getElementById(doc.id);
+                    if (data.deletedFor && data.deletedFor.includes(currentUser.mobileNumber)) {
+                        if (el) el.remove();
+                        return;
                     }
-                    messagesContainer.appendChild(messageEl);
+                    if (change.type === "added") { if (!el) renderMessage(doc); }
+                    if (change.type === "modified") { if (el) el.remove(); renderMessage(doc, true); }
+                    if (change.type === "removed") { if (el) el.remove(); }
                 });
                 scrollToBottom();
             }, error => {
-                console.error("Error fetching messages: ", error);
-                messagesContainer.innerHTML = `<p style="color:red; text-align:center; padding:20px;">Error loading messages. A Firestore index is likely required. Check browser console (F12) for a link to create it.</p>`;
+                console.error("Error fetching messages:", error);
+                messagesContainer.innerHTML = `<p style="color:red; text-align:center;">Error. A Firestore index is likely required. Check browser console (F12) for a link.</p>`;
             });
         }
         
-        // --- 7. LOGOUT LOGIC ---
-        logoutBtn.addEventListener('click', () => {
-            if (unsubscribeMessages) {
-                unsubscribeMessages();
-                unsubscribeMessages = null;
+        function renderMessage(doc, isUpdate = false) {
+             const data = doc.data();
+             const isSent = data.senderMobile === currentUser.mobileNumber;
+             const messageGroup = document.createElement('div');
+             messageGroup.id = doc.id;
+             messageGroup.classList.add('message-group', isSent ? 'sent' : 'received');
+             const messageEl = document.createElement('div');
+             messageEl.classList.add('message');
+
+             if (isSent) {
+                 const senderNameEl = document.createElement('div');
+                 senderNameEl.className = 'message-sender-name';
+                 senderNameEl.textContent = data.senderName;
+                 messageGroup.appendChild(senderNameEl);
+                 messageEl.innerHTML = `<div class="text">${data.text}</div>`;
+             } else {
+                 if (data.type === 'poll') {
+                     messageEl.innerHTML = buildPollHtml(data);
+                     messageEl.querySelectorAll('.poll-option').forEach((optionEl, index) => {
+                         optionEl.addEventListener('click', () => handleVote(doc.id, index));
+                     });
+                 } else {
+                     messageEl.innerHTML = `<div class="sender">${data.senderName}</div><div class="text">${data.text}</div>`;
+                 }
+             }
+             
+             messageGroup.appendChild(messageEl);
+             messageEl.addEventListener('contextmenu', e => e.preventDefault());
+             messageEl.addEventListener('mousedown', (e) => startLongPress(e, doc));
+             messageEl.addEventListener('touchstart', (e) => startLongPress(e, doc));
+             messageEl.addEventListener('mouseup', cancelLongPress);
+             messageEl.addEventListener('touchend', cancelLongPress);
+             
+             messagesContainer.appendChild(messageGroup);
+             if(!isUpdate) scrollToBottom();
+        }
+        
+        function buildPollHtml(data) {
+            const totalVotes = data.options.reduce((sum, opt) => sum + opt.votes, 0);
+            const userVoteIndex = data.voters ? data.voters[currentUser.mobileNumber] : undefined;
+            let optionsHtml = data.options.map((option, index) => {
+                const votePercentage = totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0;
+                return `<div class="poll-option ${userVoteIndex === index ? 'voted-by-user' : ''}"><div class="poll-option-bar" style="width: ${votePercentage}%"></div><span class="poll-option-text">${option.text}</span><span class="poll-option-votes">${option.votes} votes</span></div>`;
+            }).join('');
+            return `<div class="sender">${data.senderName}</div><div class="poll-question">${data.question}</div><div class="poll-options-wrapper">${optionsHtml}</div><div class="total-votes">Total Votes: ${totalVotes}</div>`;
+        }
+
+        pollBtn.addEventListener('click', () => pollModal.style.display = 'flex');
+        cancelPollBtn.addEventListener('click', () => pollModal.style.display = 'none');
+        addOptionBtn.addEventListener('click', () => { if (pollOptionsContainer.children.length >= 5) return; const newOption = document.createElement('div'); newOption.innerHTML = `<input type="text" placeholder="Option ${pollOptionsContainer.children.length + 1}" required><button type="button" class="remove-option-btn">-</button>`; newOption.className = 'poll-option-input'; pollOptionsContainer.appendChild(newOption); newOption.querySelector('.remove-option-btn').addEventListener('click', () => newOption.remove()); });
+        createPollBtn.addEventListener('click', () => { const question = pollQuestionInput.value.trim(); const options = Array.from(pollOptionsContainer.querySelectorAll('input')).map(input => ({ text: input.value.trim(), votes: 0 })).filter(opt => opt.text !== ''); if (!question || options.length < 2) { alert("Please provide a question and at least two options."); return; } sendMessage({ type: 'poll', question, options, voters: {} }); pollModal.style.display = 'none'; pollQuestionInput.value = ''; pollOptionsContainer.innerHTML = `<div class="poll-option-input"><input type="text" placeholder="Option 1" required></div><div class="poll-option-input"><input type="text" placeholder="Option 2" required></div>`; });
+        
+        async function handleVote(pollId, optionIndex) {
+            const pollRef = db.collection('messages').doc(pollId);
+            try { await db.runTransaction(async (transaction) => { const pollDoc = await transaction.get(pollRef); if (!pollDoc.exists) throw "Poll does not exist!"; const data = pollDoc.data(); if (data.voters && data.voters[currentUser.mobileNumber] !== undefined) return; const newOptions = [...data.options]; newOptions[optionIndex].votes += 1; const newVoters = { ...data.voters, [currentUser.mobileNumber]: optionIndex }; transaction.update(pollRef, { options: newOptions, voters: newVoters }); }); } catch (error) { console.error("Transaction failed: ", error); }
+        }
+
+        function startLongPress(event, doc) {
+            cancelLongPress();
+            longPressTimer = setTimeout(() => { event.preventDefault(); showMessageMenu(event, doc); }, 700);
+        }
+        function cancelLongPress() { clearTimeout(longPressTimer); }
+        
+        function showMessageMenu(event, doc) {
+            const messageElement = event.currentTarget;
+            selectedMessage = { id: doc.id, element: messageElement, data: doc.data() };
+            deleteEveryoneBtn.style.display = selectedMessage.data.senderMobile === currentUser.mobileNumber ? 'block' : 'none';
+            const menu = messageMenu;
+            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+            let top = clientY + 5, left = clientX - (menu.offsetWidth / 2);
+            if (left + menu.offsetWidth > window.innerWidth) left = window.innerWidth - menu.offsetWidth - 10;
+            if (top + menu.offsetHeight > window.innerHeight) top = clientY - menu.offsetHeight - 5;
+            if (left < 10) left = 10;
+            menu.style.top = `${top}px`; menu.style.left = `${left}px`;
+            menu.style.display = 'block'; menuOverlay.style.display = 'block';
+        }
+        
+        function hideMessageMenu() { messageMenu.style.display = 'none'; menuOverlay.style.display = 'none'; }
+        menuOverlay.addEventListener('click', hideMessageMenu);
+
+        deleteMeBtn.addEventListener('click', async () => {
+            if (!selectedMessage.id) return;
+            try { await db.collection('messages').doc(selectedMessage.id).update({ deletedFor: firebase.firestore.FieldValue.arrayUnion(currentUser.mobileNumber) }); } catch (error) { console.error("Error deleting for me: ", error); }
+            hideMessageMenu();
+        });
+        deleteEveryoneBtn.addEventListener('click', async () => {
+            if (!selectedMessage.id || selectedMessage.data.senderMobile !== currentUser.mobileNumber) return;
+            if (confirm("Delete this message for everyone? This cannot be undone.")) {
+                try { await db.collection('messages').doc(selectedMessage.id).delete(); } catch (error) { console.error("Error deleting for everyone: ", error); }
             }
-            
-            currentUser = null;
-            currentClass = null; // Clear the class on logout
-            sessionStorage.removeItem('currentUser');
-            showLoginView();
+            hideMessageMenu();
         });
 
-        // --- 8. UI HELPER FUNCTIONS ---
-        function showLoginView() {
-            loginContainer.style.display = 'flex';
-            chatContainer.style.display = 'none';
-            passwordInput.value = '';
-        }
-        
-        function showChatView() {
-            chatTitle.textContent = `${currentClass} Chat`;
-            loginContainer.style.display = 'none';
-            chatContainer.style.display = 'flex';
-            loadMessages();
-        }
+        function showChatView() { chatTitle.textContent = `${currentClass} Chat`; loginContainer.style.display = 'none'; chatContainer.style.display = 'flex'; loadMessages(); }
+        function showLoginView() { chatContainer.style.display = 'none'; loginContainer.style.display = 'flex'; passwordInput.value = ''; }
+        logoutBtn.addEventListener('click', () => { if (unsubscribeMessages) unsubscribeMessages(); currentUser = null; currentClass = null; sessionStorage.removeItem('currentUser'); showLoginView(); });
+        function showError(message) { errorMessage.textContent = message; }
+        function setLoginLoading(isLoading) { loginBtn.disabled = isLoading; loginBtn.textContent = isLoading ? 'Logging in...' : 'Login'; }
+        function scrollToBottom() { messagesContainer.scrollTop = messagesContainer.scrollHeight; }
 
-        function showError(message) {
-            errorMessage.textContent = message;
-        }
-        
-        function setLoginLoading(isLoading) {
-            loginBtn.disabled = isLoading;
-            loginBtn.textContent = isLoading ? 'Logging in...' : 'Login';
-        }
-
-        function scrollToBottom() {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-        
-        // --- 9. SESSION CHECK ON PAGE LOAD ---
         function checkSession() {
             const savedUserJson = sessionStorage.getItem('currentUser');
             if (savedUserJson) {
                 const savedUser = JSON.parse(savedUserJson);
-                // *** NEW LOGIC: Restore user and their class from session ***
-                if (savedUser.class) {
-                    currentUser = savedUser;
-                    currentClass = savedUser.class;
-                    showChatView();
-                } else {
-                    // If session data is old or malformed, force a logout
-                    logoutBtn.click();
-                }
-            } else {
-                showLoginView();
-            }
+                if (savedUser.class) { currentUser = savedUser; currentClass = savedUser.class; showChatView(); } 
+                else { logoutBtn.click(); }
+            } else { showLoginView(); }
         }
-        
-        // Start the app
         checkSession();
-
     </script>
 </body>
 </html>
