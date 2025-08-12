@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Solution</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; }
+        .header { background: #E67E22; color: white; padding: 15px 20px; font-size: 20px; font-weight: 500; display: flex; align-items: center; }
+        .header .back-arrow { font-size: 24px; margin-right: 15px; cursor: pointer; }
+        .container { padding: 20px; }
+        .question-review-card { background: white; border-radius: 8px; margin-bottom: 20px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .question-header { font-size: 16px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        .question-image { max-width: 100%; border-radius: 5px; margin-top: 15px; }
+        .options-list { list-style: none; padding: 0; margin: 15px 0; }
+        .options-list li { padding: 10px; border-radius: 5px; margin-bottom: 8px; border: 2px solid transparent; }
+        .option-image { max-width: 150px; display: block; margin-top: 10px; }
+        .correct-answer { background-color: #d4edda; border-color: #28a745; }
+        .wrong-answer { background-color: #f8d7da; border-color: #dc3545; }
+        .solution-box { background-color: #e2e3e5; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .solution-box h4 { margin-top: 0; }
+        #loading { text-align: center; padding: 50px; font-size: 18px; color: #777; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <span class="back-arrow" onclick="history.back()">&larr;</span>
+    <span id="header-title">Test Solution</span>
+</div>
+<div class="container" id="solution-container">
+    <!-- Solutions will be populated here -->
+</div>
+<p id="loading">Loading solutions...</p>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVIgUAmKlJqwvkd9kblaujzIVlSq9_EiM",
+      authDomain: "tests-data-with-leaderboard.firebaseapp.com",
+      projectId: "tests-data-with-leaderboard",
+      storageBucket: "tests-data-with-leaderboard.firebasestorage.app",
+      messagingSenderId: "884648979462",
+      appId: "1:884648979462:web:446df6ccb02bf73397e787",
+      measurementId: "G-701ZP61XZT"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function loadSolution() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const resultId = urlParams.get('resultId');
+
+        if (!resultId) {
+            document.getElementById('loading').textContent = 'Error: Result ID not found.';
+            return;
+        }
+
+        try {
+            // 1. Get the result data (contains user answers and testId)
+            const resultDoc = await db.collection('results').doc(resultId).get();
+            if (!resultDoc.exists) {
+                document.getElementById('loading').textContent = 'Error: Result not found.';
+                return;
+            }
+            const resultData = resultDoc.data();
+            const userAnswers = resultData.answers;
+            const testId = resultData.testId;
+
+            // 2. Get the test data (contains questions and correct answers)
+            const testDoc = await db.collection('tests').doc(testId).get();
+            if (!testDoc.exists) {
+                document.getElementById('loading').textContent = 'Error: Corresponding test data not found.';
+                return;
+            }
+            const testData = testDoc.data();
+
+            const solutionContainer = document.getElementById('solution-container');
+            solutionContainer.innerHTML = '';
+            document.getElementById('loading').style.display = 'none';
+
+            testData.questions.forEach((question, index) => {
+                const card = document.createElement('div');
+                card.className = 'question-review-card';
+
+                let questionHtml = `<div class="question-header">Question ${index + 1}</div>`;
+                questionHtml += `<p>${question.questionText}</p>`;
+                if (question.questionImage) {
+                    questionHtml += `<img src="${question.questionImage}" alt="Question Image" class="question-image">`;
+                }
+
+                questionHtml += '<ul class="options-list">';
+                question.options.forEach((option, optIndex) => {
+                    const isCorrect = optIndex === question.correctAnswer;
+                    const userAnswer = userAnswers[index];
+                    const isUserChoice = userAnswer === optIndex;
+
+                    let liClass = '';
+                    if (isCorrect) {
+                        liClass = 'correct-answer';
+                    } else if (isUserChoice && !isCorrect) {
+                        liClass = 'wrong-answer';
+                    }
+                    
+                    let optionContent = option.optionText || '';
+                    if (option.optionImage) {
+                         optionContent += `<img src="${option.optionImage}" class="option-image" alt="Option Image">`;
+                    }
+                    
+                    questionHtml += `<li class="${liClass}">${optionContent}</li>`;
+                });
+                questionHtml += '</ul>';
+
+                if (question.solution) {
+                    questionHtml += `
+                        <div class="solution-box">
+                            <h4>Solution</h4>
+                            <p>${question.solution}</p>
+                        </div>
+                    `;
+                }
+                
+                card.innerHTML = questionHtml;
+                solutionContainer.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error("Error loading solution: ", error);
+            document.getElementById('loading').textContent = 'Could not load solutions.';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSolution);
+</script>
+</body>
+</html>
