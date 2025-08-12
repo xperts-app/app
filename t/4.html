@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Result</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #fff; }
+        .result-header { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; padding: 40px 20px; text-align: center; }
+        .score-circle { width: 150px; height: 150px; border: 8px solid rgba(255,255,255,0.5); border-radius: 50%; margin: 0 auto 10px auto; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .score-circle .score { font-size: 48px; font-weight: bold; }
+        .score-circle .total { font-size: 18px; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.5); padding-top: 5px; margin-top: 5px; }
+        .result-header h2 { margin: 0; font-weight: 500; }
+        .actions { padding: 20px; text-align: center; }
+        .btn { padding: 15px 30px; border-radius: 25px; border: 1px solid #ddd; background-color: white; font-size: 16px; cursor: pointer; text-decoration: none; color: #333; margin: 0 10px; }
+        .stats-container { padding: 0 20px 20px 20px; background: #f0f2f5; }
+        .stats-box { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid; }
+        .stats-box h3 { margin: 0 0 10px 0; font-size: 16px; color: #555; }
+        .stats-box p { margin: 0; font-size: 24px; font-weight: bold; }
+        .correct { border-color: #28a745; }
+        .correct p { color: #28a745; }
+        .incorrect { border-color: #dc3545; }
+        .incorrect p { color: #dc3545; }
+        .unattempted { border-color: #6c757d; }
+        .unattempted p { color: #6c757d; }
+        #loading { text-align: center; padding: 50px; font-size: 18px; color: #777; }
+    </style>
+</head>
+<body>
+
+<div id="result-page" style="display: none;">
+    <div class="result-header">
+        <div class="score-circle">
+            <span class="score" id="score">0</span>
+            <span class="total" id="total-marks">/ 120</span>
+        </div>
+        <h2 id="class-average">Class average: --</h2>
+    </div>
+
+    <div class="actions">
+        <a href="#" id="view-solution-btn" class="btn">View test solution</a>
+        <a href="#" id="leaderboard-btn" class="btn">Leaderboard</a>
+    </div>
+
+    <div class="stats-container">
+        <h3>Question details</h3>
+        <p style="color:#888; margin-top: -10px; margin-bottom: 20px;">You've answered <span id="percent-correct">0%</span> questions correctly</p>
+        <div class="stats-box correct">
+            <h3>Correct</h3>
+            <p id="correct-count">0</p>
+        </div>
+        <div class="stats-box incorrect">
+            <h3>Incorrect</h3>
+            <p id="incorrect-count">0</p>
+        </div>
+        <div class="stats-box unattempted">
+            <h3>Unattempted</h3>
+            <p id="unattempted-count">100</p>
+        </div>
+    </div>
+</div>
+
+<p id="loading">Loading result...</p>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVIgUAmKlJqwvkd9kblaujzIVlSq9_EiM",
+      authDomain: "tests-data-with-leaderboard.firebaseapp.com",
+      projectId: "tests-data-with-leaderboard",
+      storageBucket: "tests-data-with-leaderboard.firebasestorage.app",
+      messagingSenderId: "884648979462",
+      appId: "1:884648979462:web:446df6ccb02bf73397e787",
+      measurementId: "G-701ZP61XZT"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function loadResult() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const resultId = urlParams.get('resultId');
+
+        if (!resultId) {
+            document.getElementById('loading').textContent = 'Error: Result ID not found.';
+            return;
+        }
+
+        try {
+            const resultDoc = await db.collection('results').doc(resultId).get();
+            if (!resultDoc.exists) {
+                document.getElementById('loading').textContent = 'Error: Result not found.';
+                return;
+            }
+
+            const result = resultDoc.data();
+            
+            document.getElementById('score').textContent = result.score;
+            document.getElementById('total-marks').textContent = `/ ${result.totalMarks}`;
+            
+            const totalQuestions = result.correctCount + result.incorrectCount + result.unattemptedCount;
+            const percentCorrect = totalQuestions > 0 ? ((result.correctCount / totalQuestions) * 100).toFixed(0) : 0;
+            document.getElementById('percent-correct').textContent = `${percentCorrect}%`;
+            
+            document.getElementById('correct-count').textContent = `${result.correctCount}`;
+            document.getElementById('incorrect-count').textContent = `${result.incorrectCount}`;
+            document.getElementById('unattempted-count').textContent = `${result.unattemptedCount}`;
+
+            document.getElementById('view-solution-btn').href = `6.html?resultId=${resultId}`;
+            document.getElementById('leaderboard-btn').href = `5.html?testId=${result.testId}`;
+
+            // Fetch class average (optional, can be slow)
+            const allResultsSnapshot = await db.collection('results').where('testId', '==', result.testId).get();
+            let totalScore = 0;
+            allResultsSnapshot.forEach(doc => {
+                totalScore += doc.data().score;
+            });
+            const classAverage = allResultsSnapshot.size > 0 ? (totalScore / allResultsSnapshot.size).toFixed(2) : '--';
+            document.getElementById('class-average').textContent = `Class average: ${classAverage}`;
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('result-page').style.display = 'block';
+
+        } catch (error) {
+            console.error("Error loading result: ", error);
+            document.getElementById('loading').textContent = 'Could not load result.';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadResult);
+</script>
+</body>
+</html>
