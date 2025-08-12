@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Create Test</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #E67E22; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
+        input[type="text"], input[type="url"], select, textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        textarea { resize: vertical; min-height: 100px; }
+        .btn { display: inline-block; padding: 12px 25px; background-color: #E67E22; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; text-align: center; text-decoration: none; }
+        .btn-secondary { background-color: #3498DB; }
+        .btn-add { background-color: #2ECC71; }
+        #questions-container { margin-top: 30px; }
+        .question-card { background: #ecf0f1; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498DB; }
+        .question-card h3 { margin-top: 0; }
+        .option-group { display: flex; align-items: center; margin-bottom: 10px; }
+        .option-group input[type="radio"] { margin-right: 10px; }
+        #message { text-align: center; padding: 10px; margin-top: 20px; border-radius: 5px; display: none; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 id="page-title">Create a New Test</h1>
+    <a href="7.html" class="btn btn-secondary" style="margin-bottom: 20px;">Manage Tests</a>
+
+    <form id="test-form">
+        <div class="form-group">
+            <label for="testName">Test Name (e.g., Part Test - 1)</label>
+            <input type="text" id="testName" required>
+        </div>
+        <div class="form-group">
+            <label for="className">Class (e.g., 10, 12, NEET)</label>
+            <input type="text" id="className" required>
+        </div>
+        <div class="form-group">
+            <label for="duration">Duration (in minutes)</label>
+            <input type="number" id="duration" required>
+        </div>
+
+        <h2>Questions</h2>
+        <div id="questions-container">
+            <!-- Questions will be added here dynamically -->
+        </div>
+
+        <button type="button" class="btn btn-add" onclick="addQuestion()">Add Question</button>
+        <hr style="margin: 20px 0;">
+        <button type="submit" class="btn" id="save-btn">Save Test</button>
+    </form>
+    <div id="message"></div>
+</div>
+
+<template id="question-template">
+    <div class="question-card">
+        <h3 class="question-title">Question</h3>
+        <div class="form-group">
+            <label>Question Text</label>
+            <input type="text" class="questionText" placeholder="Enter question text">
+        </div>
+        <div class="form-group">
+            <label>Question Image URL (Optional)</label>
+            <input type="url" class="questionImage" placeholder="https://example.com/image.png">
+        </div>
+        <label>Options (Mark the correct one)</label>
+        <div class="options">
+            <!-- Options will be added here -->
+        </div>
+        <div class="form-group" style="margin-top:15px;">
+            <label>Detailed Solution</label>
+            <textarea class="solution" placeholder="Explain the answer here"></textarea>
+        </div>
+    </div>
+</template>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVIgUAmKlJqwvkd9kblaujzIVlSq9_EiM",
+      authDomain: "tests-data-with-leaderboard.firebaseapp.com",
+      projectId: "tests-data-with-leaderboard",
+      storageBucket: "tests-data-with-leaderboard.firebasestorage.app",
+      messagingSenderId: "884648979462",
+      appId: "1:884648979462:web:446df6ccb02bf73397e787",
+      measurementId: "G-701ZP61XZT"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    let questionCounter = 0;
+    let editTestId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        editTestId = urlParams.get('edit');
+        if (editTestId) {
+            document.getElementById('page-title').textContent = 'Edit Test';
+            document.getElementById('save-btn').textContent = 'Update Test';
+            loadTestData(editTestId);
+        } else {
+            addQuestion(); // Add the first question by default for new tests
+        }
+    });
+
+    async function loadTestData(testId) {
+        try {
+            const doc = await db.collection('tests').doc(testId).get();
+            if (doc.exists) {
+                const test = doc.data();
+                document.getElementById('testName').value = test.testName;
+                document.getElementById('className').value = test.class;
+                document.getElementById('duration').value = test.duration;
+                
+                test.questions.forEach(qData => {
+                    addQuestion(qData);
+                });
+            } else {
+                showMessage('Test not found.', 'error');
+            }
+        } catch (error) {
+            console.error("Error loading test data: ", error);
+            showMessage('Error loading test data.', 'error');
+        }
+    }
+
+
+    function addQuestion(data = null) {
+        const template = document.getElementById('question-template');
+        const clone = template.content.cloneNode(true);
+        const questionCard = clone.querySelector('.question-card');
+        const questionTitle = clone.querySelector('.question-title');
+
+        questionTitle.textContent = `Question ${questionCounter + 1}`;
+        questionCard.dataset.id = questionCounter;
+
+        const optionsContainer = clone.querySelector('.options');
+        for (let i = 0; i < 4; i++) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'option-group';
+            optionDiv.innerHTML = `
+                <input type="radio" name="correctAnswer_${questionCounter}" value="${i}" required>
+                <input type="text" class="optionText" placeholder="Option ${i + 1} Text">
+                <input type="url" class="optionImage" placeholder="Option ${i + 1} Image URL">
+            `;
+            optionsContainer.appendChild(optionDiv);
+        }
+
+        if (data) {
+            questionCard.querySelector('.questionText').value = data.questionText || '';
+            questionCard.querySelector('.questionImage').value = data.questionImage || '';
+            questionCard.querySelector('.solution').value = data.solution || '';
+            const optionTexts = questionCard.querySelectorAll('.optionText');
+            const optionImages = questionCard.querySelectorAll('.optionImage');
+            data.options.forEach((opt, i) => {
+                optionTexts[i].value = opt.optionText || '';
+                optionImages[i].value = opt.optionImage || '';
+            });
+            questionCard.querySelector(`input[name="correctAnswer_${questionCounter}"][value="${data.correctAnswer}"]`).checked = true;
+        }
+
+        document.getElementById('questions-container').appendChild(clone);
+        questionCounter++;
+    }
+
+    document.getElementById('test-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const testName = document.getElementById('testName').value;
+        const className = document.getElementById('className').value;
+        const duration = document.getElementById('duration').value;
+
+        const questions = [];
+        const questionCards = document.querySelectorAll('.question-card');
+
+        for (const card of questionCards) {
+            const questionText = card.querySelector('.questionText').value;
+            const questionImage = card.querySelector('.questionImage').value;
+            const solution = card.querySelector('.solution').value;
+
+            const options = [];
+            const optionTextInputs = card.querySelectorAll('.optionText');
+            const optionImageInputs = card.querySelectorAll('.optionImage');
+            for (let i = 0; i < 4; i++) {
+                options.push({
+                    optionText: optionTextInputs[i].value,
+                    optionImage: optionImageInputs[i].value
+                });
+            }
+
+            const correctAnswerRadio = card.querySelector(`input[type="radio"]:checked`);
+            if (!correctAnswerRadio) {
+                showMessage(`Please select a correct answer for Question ${parseInt(card.dataset.id) + 1}.`, 'error');
+                return;
+            }
+            const correctAnswer = parseInt(correctAnswerRadio.value);
+            
+            questions.push({
+                questionText,
+                questionImage,
+                options,
+                correctAnswer,
+                solution
+            });
+        }
+
+        const testData = {
+            testName,
+            class: className,
+            duration: parseInt(duration),
+            questions,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+            if (editTestId) {
+                await db.collection('tests').doc(editTestId).update(testData);
+                showMessage('Test updated successfully!', 'success');
+            } else {
+                await db.collection('tests').add(testData);
+                showMessage('Test saved successfully!', 'success');
+                e.target.reset();
+                document.getElementById('questions-container').innerHTML = '';
+                questionCounter = 0;
+                addQuestion();
+            }
+        } catch (error) {
+            console.error("Error saving test: ", error);
+            showMessage('Error saving test. See console for details.', 'error');
+        }
+    });
+
+    function showMessage(msg, type) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = msg;
+        messageDiv.className = type;
+        messageDiv.style.display = 'block';
+        setTimeout(() => { messageDiv.style.display = 'none'; }, 4000);
+    }
+</script>
+
+</body>
+</html>
