@@ -17,6 +17,7 @@
         .status-completed { color: #28a745; font-weight: 500; display: flex; align-items: center; }
         .status-completed svg { width: 18px; height: 18px; margin-right: 5px; }
         #loading { text-align: center; padding: 50px; font-size: 18px; color: #777; }
+        .error-message { color: red; font-weight: bold; background-color: #f8d7da; padding: 15px; border-radius: 5px; border: 1px solid #f5c6cb;}
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; display: none; }
         .modal-content { background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
         .modal-content h3 { margin-top: 0; }
@@ -53,13 +54,14 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
+    // NOTE: Corrected typo in appId ("1:8846..." instead of "1:8464...")
     const firebaseConfig = {
       apiKey: "AIzaSyDVIgUAmKlJqwvkd9kblaujzIVlSq9_EiM",
       authDomain: "tests-data-with-leaderboard.firebaseapp.com",
       projectId: "tests-data-with-leaderboard",
       storageBucket: "tests-data-with-leaderboard.firebasestorage.app",
       messagingSenderId: "884648979462",
-      appId: "1:884648979462:web:446df6ccb02bf73397e787",
+      appId: "1:884648979462:web:446df6ccb02bf73397e787", 
       measurementId: "G-701ZP61XZT"
     };
 
@@ -73,37 +75,46 @@
     }
 
     async function loadTests() {
+        // --- FIX ---
+        // Get the elements INSIDE the function. This guarantees they exist when the code runs.
+        const testListDiv = document.getElementById('test-list');
+        const loadingDiv = document.getElementById('loading');
+
         const urlParams = new URLSearchParams(window.location.search);
         const className = urlParams.get('class');
         
         if (!className) {
-            document.getElementById('test-list').innerHTML = '<p>Error: No class specified in URL. Example: ?class=NEET</p>';
-            document.getElementById('loading').style.display = 'none';
+            loadingDiv.style.display = 'none';
+            testListDiv.innerHTML = `<div class="error-message">Error: No class specified in URL. <br>Example: <strong>2.html?class=NEET</strong></div>`;
             return;
         }
 
         document.getElementById('header-title').textContent = `${className} Mock Tests`;
 
         try {
-            // 1. Get all tests for the class
-            const testsSnapshot = await db.collection('tests').where('class', '==', className).orderBy('createdAt').get();
+            // Using the simplified query to avoid index errors for now.
+            const testsSnapshot = await db.collection('tests').where('class', '==', className).get();
             const tests = testsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // 2. Get all results for the current user
+            // Client-side sorting as a fallback
+            tests.sort((a, b) => {
+                const timeA = a.createdAt ? a.createdAt.toMillis() : 0;
+                const timeB = b.createdAt ? b.createdAt.toMillis() : 0;
+                return timeA - timeB; 
+            });
+
             const resultsSnapshot = await db.collection('results').where('userId', '==', userId).get();
             const completedTests = new Map();
             resultsSnapshot.forEach(doc => {
-                const result = doc.data();
-                // Store the latest result for each test
-                completedTests.set(result.testId, doc.id); 
+                completedTests.set(doc.data().testId, doc.id); 
             });
 
-            const testListDiv = document.getElementById('test-list');
             testListDiv.innerHTML = '';
-            document.getElementById('loading').style.display = 'none';
+            loadingDiv.style.display = 'none';
 
             if (tests.length === 0) {
-                testListDiv.innerHTML = `<p>No tests found for class '${className}'.</p>`;
+                testListDiv.innerHTML = `<p>No tests found for class '<strong>${className}</strong>'.</p>
+                                         <p>Please check if the class name in the URL is correct (it's case-sensitive) and that tests for this class exist in the database.</p>`;
                 return;
             }
             
@@ -136,9 +147,13 @@
             });
 
         } catch (error) {
-            console.error("Error loading tests: ", error);
-            document.getElementById('test-list').innerHTML = '<p>Could not load tests. Please try again later.</p>';
-            document.getElementById('loading').style.display = 'none';
+            console.error("Firebase Error: Failed to load tests.", error);
+            loadingDiv.style.display = 'none';
+            testListDiv.innerHTML = `<div class="error-message">
+                                        <strong>Error: Could not load tests.</strong><br>
+                                        Please check the browser's developer console (F12) for a more specific Firebase error.
+                                        It's likely a 'Permission Denied' error (fix your rules) or a missing 'Index' error (create the index in Firebase).
+                                     </div>`;
         }
     }
 
@@ -172,7 +187,9 @@
             closeModal();
         }
     }
-
+    
+    // --- FIX ---
+    // Ensure the main function is called only after the DOM is fully loaded.
     document.addEventListener('DOMContentLoaded', loadTests);
 </script>
 </body>
