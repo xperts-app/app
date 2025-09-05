@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome - ALLEN Digital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary-blue: #0066ff; --background-color: #f0f4f9; --text-dark: #1d2c3c; --text-light: #5a6b7d; }
+    body { font-family: 'Poppins', sans-serif; background-color: var(--background-color); margin: 0; }
+    #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--background-color); display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.3s; }
+    .spinner { width: 50px; height: 50px; border: 5px solid rgba(0, 102, 255, 0.2); border-top-color: var(--primary-blue); border-radius: 50%; animation: spin 1s ease-in-out infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .main-container { display: none; max-width: 450px; margin: auto; padding: 5vh 20px 20px 20px; text-align: center; }
+    .illustration{width:180px;height:180px;margin:0 auto 30px auto}
+    h2{font-weight:600;font-size:28px;color:var(--text-dark);margin-bottom:12px}
+    p.subtitle{color:var(--text-light);font-size:16px;margin-bottom:40px;line-height:1.6}
+    .input-group{margin-bottom:25px;text-align:left}
+    label{display:block;margin-bottom:8px;font-weight:500;font-size:14px;color:var(--text-dark)}
+    input{width:100%;padding:15px;border:1px solid #dbe2ea;border-radius:12px;font-size:16px;box-sizing:border-box;font-family:'Poppins',sans-serif;transition:border-color .3s,box-shadow .3s}
+    input:focus{outline:0;border-color:var(--primary-blue);box-shadow:0 0 0 4px rgba(0,102,255,.1)}
+    .btn-primary{background-color:var(--primary-blue);color:#fff;border:none;padding:16px 0;border-radius:12px;font-size:18px;font-weight:600;width:100%;cursor:pointer;transition:background-color .3s}
+    .btn-primary:disabled{background-color:#a0cffd;cursor:not-allowed}
+    #password-container{display:none}
+    .error-msg{color:#dc3545;font-weight:500;margin-top:20px;min-height:1.2em}
+  </style>
+</head>
+<body>
+  <div id="loading-overlay"><div class="spinner"></div></div>
+  <div class="main-container" id="login-container">
+    <h2>Welcome Back!</h2>
+    <p class="subtitle">Enter your mobile number to sign in and continue your learning journey.</p>
+    <div id="login-form">
+      <div class="input-group"><label for="mobile">Mobile Number</label><input type="tel" id="mobile" name="mobile" placeholder="10-digit mobile number" maxlength="10"></div>
+      <div id="password-container"><div class="input-group"><label for="password">Password</label><input type="password" id="password" name="password" placeholder="Enter your password"></div></div>
+      <button type="button" class="btn-primary" id="submit-btn">Continue</button>
+      <p id="error-message" class="error-msg"></p>
+    </div>
+  </div>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-ers6CRuH8bCFomXJHuLxPWff-Xa4ZVk",
+      authDomain: "xperts-data.firebaseapp.com",
+      projectId: "xperts-data",
+      storageBucket: "xperts-data.firebasestorage.app",
+      messagingSenderId: "934675149024",
+      appId: "1:934675149024:web:23486a5f38f65f103ce085",
+      measurementId: "G-6TS06NTDZQ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loginContainer = document.getElementById('login-container');
+    const mobileInput = document.getElementById('mobile');
+    const passwordInput = document.getElementById('password');
+    const passwordContainer = document.getElementById('password-container');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMessage = document.getElementById('error-message');
+
+    window.addEventListener('load', () => {
+      setTimeout(() => { loadingOverlay.style.opacity = '0'; loadingOverlay.style.pointerEvents = 'none'; loginContainer.style.display = 'block'; }, 800);
+    });
+
+    async function checkSession() {
+      const userId = localStorage.getItem('loggedInUserId');
+      if (userId) {
+        try {
+          const userDoc = await db.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            localStorage.setItem('loggedInUserRole', userData.role);
+            localStorage.setItem('loggedInUserIsAllowed', userData.isAllowed);
+            localStorage.setItem('loggedInUserName', userData.fullName);
+            redirectUser(userData.role, userData.isAllowed);
+          } else {
+            localStorage.clear();
+          }
+        } catch (error) {
+          console.error("Session check error:", error);
+          localStorage.clear();
+        }
+      }
+    }
+
+    function redirectUser(role, isAllowed) {
+      if (role === 'Student') {
+        if (isAllowed) { window.location.href = "student_portal.html"; }
+        else { window.location.href = "unverified.html"; }
+      } else if (role === 'Teacher') {
+        window.location.href = "https://apple.com";
+      } else if (role === 'Admin') {
+        window.location.href = "3.html";
+      } else {
+        window.location.href = "unverified.html";
+      }
+    }
+
+    let currentUser = null;
+    submitBtn.addEventListener('click', async () => {
+      errorMessage.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Please wait...';
+      const mobile = mobileInput.value.trim();
+      if (!mobile.match(/^[0-9]{10}$/)) {
+        errorMessage.textContent = 'Please enter a valid 10-digit mobile number.';
+        submitBtn.disabled = false; submitBtn.textContent = 'Continue'; return;
+      }
+      try {
+        const snapshot = await db.collection('users').where('mobileNumber','==',mobile).get();
+        if (snapshot.empty) { window.location.href = "2.html"; return; }
+        currentUser = snapshot.docs[0]; const userData = currentUser.data();
+        if (!passwordContainer.style.display || passwordContainer.style.display === 'none') {
+          passwordContainer.style.display = 'block'; submitBtn.textContent = 'Sign In'; submitBtn.disabled = false;
+        } else {
+          const password = passwordInput.value.trim();
+          if (userData && userData.password === password) {
+            localStorage.setItem('loggedInUserId', currentUser.id);
+            localStorage.setItem('loggedInUserRole', userData.role);
+            localStorage.setItem('loggedInUserIsAllowed', userData.isAllowed);
+            localStorage.setItem('loggedInUserName', userData.fullName);
+            redirectUser(userData.role, userData.isAllowed);
+          } else {
+            errorMessage.textContent = 'Invalid password. Please try again.'; submitBtn.disabled = false; submitBtn.textContent = 'Sign In';
+          }
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        errorMessage.textContent = 'An error occurred. Please try again.'; submitBtn.disabled = false; submitBtn.textContent = 'Continue';
+      }
+    });
+
+    checkSession();
+  </script>
+</body>
+</html>
